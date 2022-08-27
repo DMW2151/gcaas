@@ -17,18 +17,22 @@
     "GET",
     "SET",
     "HSET",
-    "FT.SEARCH",
+    "HMGET",
+    "PUBLISH",
+    "SUBSCRIBE",
     "FT.CREATE",
+    "FT.SEARCH",
   ],
   "redis_features": [
     "caching",
+    "geospatial",
     "search"
   ],
   "redis_modules": [
     "RediSearch"
   ],
   "app_image_urls": [
-    "https://github.com/redis-developer/basic-caching-demo-nodejs/blob/main/docs/screenshot001.png?raw=true"
+    "https://github.com/DMW2151/gcaas/blob/main/_arch.jpg"
   ],
   "youtube_url": "https://www.youtube.com/watch?v=...",
   "special_tags": [
