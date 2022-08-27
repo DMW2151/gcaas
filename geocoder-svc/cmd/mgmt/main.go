@@ -24,7 +24,7 @@ import (
 var (
 	// grpc - gcaas mgmt options (this service)
 	serverListenAddr = flag.String("host", "0.0.0.0", "serverListenAddr (default '0.0.0.0') defines the server's listening address")
-	serverPort       = flag.Int("port", 50051, "serverPort (default: 50051) defines the port to listen on")
+	serverPort       = flag.Int("port", 50052, "serverPort (default: 50051) defines the port to listen on")
 
 	// redis options
 	redisHost = flag.String("redis-host", "search", "host of the redis server to use as a FT engine")
@@ -136,10 +136,7 @@ func (s *ManagementServer) InsertorReplaceAddressData(stream pb.Management_Inser
 			numQueuedTransactions++
 			pipe.Do(ctx, "HSET", fmt.Sprintf("address:%s", address.Id),
 				"location", fmt.Sprintf("%.8f, %.8f", address.Location.Latitude, address.Location.Longitude),
-				"composite_street_address", fmt.Sprintf(
-					"%s %s %s %s",
-					address.Data.HouseNum, address.Data.FullStreetName, address.Data.Borocode.String(), address.Data.Zipcode,
-				),
+				"composite_street_address", address.CompositeStreetAddress,
 			)
 		}
 	}

@@ -127,8 +127,8 @@ func handleServerResponse(res interface{}, maxResults int64) ([]*pb.ScoredAddres
 				Location: pt,
 				Id:       Id,
 			},
-			NormedConfidence:  float32(confScore / maxConfidence),
-			FullStreetAddress: fullStreetAddress,
+			NormedConfidence:       float32(confScore / maxConfidence),
+			CompositeStreetAddress: fullStreetAddress,
 		}
 	}
 	return addressResults, nil

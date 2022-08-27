@@ -23,21 +23,7 @@ service Management {
   rpc InsertorReplaceAddressData(stream Address) returns (IOResponse) {} //
 }
 
-
 // GEOCODE SERVICE //
-
-// Boro defines one of 5 nyc boros + 3 adjacent regions + 1 undefined status
-enum Boro {
-  UNDEFINED = 0;
-  MANHATTAN = 1;
-  BRONX = 2;
-  BROOKLYN = 3;
-  QUEENS = 4;
-  STATEN_ISLAND = 5;
-  NASSAU = 6;
-  WESTCHESTER = 7;
-  NEW_JERSEY = 8;
-}
 
 // Method defines the geocoding method, either forward (address -> point) or reverse (point -> address)
 enum Method {
@@ -52,20 +38,11 @@ message Point {
   float longitude = 2;
 }
 
-// AddressData represents the components of an adress from the following data
-// Reference: https://data.cityofnewyork.us/api/views/g6pj-hd8k/files/375ad68c-4cea-45ff-aa9c-8307ae3ed7bb?download=true&filename=AddressPoint.pdf
-message AddressData {
-  string house_num = 1; // Stores the address number. The field supports hyphenated and range based addresses (e.g. 457-459 7th Ave.)
-  string full_street_name = 2;
-  Boro borocode = 3; 
-  string zipcode = 4;
-}
-
 // Address represents a composite address object with an Id, a resolved location, and component data
 message Address {
   string id = 1;
   Point location = 2;
-  AddressData data = 23;
+  string composite_street_address = 3;
 }
 
 // GeocodeRequest canonically represents a request to Geocoder.Geocode, contains one of `Point` or `AddressQuery` (string)
@@ -83,7 +60,7 @@ message GeocodeRequest {
 message ScoredAddress {
   Address address = 1;
   float normed_confidence = 2;
-  string full_street_address = 3;
+  string composite_street_address = 3;
 }
 
 // GeocodeResponse canonically represents a response from Geocoder.Geocode, composed of a 
@@ -137,7 +114,6 @@ message ResolvedAddress {
 message BatchResponse {
   repeated ResolvedAddress results = 1;
 }
-
 
 // MANAGEMENT SERVICE //
 

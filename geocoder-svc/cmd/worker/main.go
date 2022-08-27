@@ -4,8 +4,8 @@ import (
 
 	// standard lib
 	"context"
-	"fmt"
 	"flag"
+	"fmt"
 
 	// internal
 	srv "github.com/dmw2151/geocoder/geocoder-svc/internal"
@@ -29,8 +29,8 @@ var (
 type Worker struct {
 	pubsubClient *redis.Client
 	spacesClient *s3.S3
-	listenTopic string
-	replyTopic string
+	listenTopic  string
+	replyTopic   string
 }
 
 func (w *Worker) updateBatchJobStatus(ctx context.Context, id string, bs pb.BatchGeocodeStatus, dlfp string) {
@@ -48,9 +48,9 @@ func (w *Worker) updateBatchJobStatus(ctx context.Context, id string, bs pb.Batc
 	_, err := pubsubPipe.Exec(ctx)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"err":                err,
-			"batch.id":           id,
-			"batch.status":       bs.String(),
+			"err":          err,
+			"batch.id":     id,
+			"batch.status": bs.String(),
 		}).Error("failed to publish status event on batch.status")
 	}
 }
@@ -69,7 +69,7 @@ func (w *Worker) Listen(ctx context.Context) {
 	// marshall msg from the pub/sub channel and write to cache
 	for msg := range channel {
 		log.Infof("worker recv msg on %s", w.listenTopic)
-		
+
 		go func() {
 			var cbr pb.CreateBatchRequest
 			var batchResults pb.BatchResponse
@@ -86,20 +86,20 @@ func (w *Worker) Listen(ctx context.Context) {
 			err := srv.GetBatchFromStorage(w.spacesClient, baseFileKey, &cbr)
 			if err != nil {
 				log.WithFields(log.Fields{
-					"err":                err,
-					"batch.id":           Id,
-					"batch.status":       pb.BatchGeocodeStatus_FAILED.String(),
+					"err":          err,
+					"batch.id":     Id,
+					"batch.status": pb.BatchGeocodeStatus_FAILED.String(),
 				}).Error("batch failed in download from spaces")
 				w.updateBatchJobStatus(ctx, Id, pb.BatchGeocodeStatus_FAILED, "")
 				return
 			}
-			
+
 			// process the file
 			if err != nil {
 				log.WithFields(log.Fields{
-					"err":                err,
-					"batch.id":           Id,
-					"batch.status":       pb.BatchGeocodeStatus_FAILED.String(),
+					"err":          err,
+					"batch.id":     Id,
+					"batch.status": pb.BatchGeocodeStatus_FAILED.String(),
 				}).Error("batch failed in geocoding")
 				w.updateBatchJobStatus(ctx, Id, pb.BatchGeocodeStatus_FAILED, "")
 				return
@@ -109,9 +109,9 @@ func (w *Worker) Listen(ctx context.Context) {
 			err = srv.PersistBatchToStorage(w.spacesClient, batchResults, resultsFileKey)
 			if err != nil {
 				log.WithFields(log.Fields{
-					"err":                err,
-					"batch.id":           Id,
-					"batch.status":       pb.BatchGeocodeStatus_FAILED.String(),
+					"err":          err,
+					"batch.id":     Id,
+					"batch.status": pb.BatchGeocodeStatus_FAILED.String(),
 				}).Error("batch failed in saving results to spaces")
 				w.updateBatchJobStatus(ctx, Id, pb.BatchGeocodeStatus_FAILED, "")
 				return
@@ -121,13 +121,13 @@ func (w *Worker) Listen(ctx context.Context) {
 			downloadPath, err := srv.GeneratePresignedURL(w.spacesClient, resultsFileKey)
 			if err != nil {
 				log.WithFields(log.Fields{
-					"err":                err,
-					"batch.id":           Id,
-					"batch.status":       pb.BatchGeocodeStatus_FAILED.String(),
+					"err":          err,
+					"batch.id":     Id,
+					"batch.status": pb.BatchGeocodeStatus_FAILED.String(),
 				}).Error("batch failed in generating download URL")
 				w.updateBatchJobStatus(ctx, Id, pb.BatchGeocodeStatus_FAILED, "")
 				return
-			}	
+			}
 
 			// success
 			w.updateBatchJobStatus(ctx, Id, pb.BatchGeocodeStatus_SUCCESS, downloadPath)
@@ -148,8 +148,8 @@ func main() {
 	// init batch server object
 	worker := &Worker{
 		spacesClient: srv.MustSpacesClient(),
-		listenTopic: "batch.creates", 
-		replyTopic: "batch.status",
+		listenTopic:  "batch.creates",
+		replyTopic:   "batch.status",
 		pubsubClient: srv.MustRedisClient(
 			context.Background(),
 			&srv.RedisClientOptions{

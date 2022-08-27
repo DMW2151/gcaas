@@ -30,9 +30,9 @@ var (
 	// ErrMaxResultsOutofRange -
 	ErrMaxResultsOutofRange = errors.New("`max_results` must be an int between 1 and 1024")
 
-	// ErrBatchMustHavePointsOrAddresses - 
+	// ErrBatchMustHavePointsOrAddresses -
 	ErrBatchMustHavePointsOrAddresses = errors.New("batches must have points *or* addresses")
 
-	// ErrEnvironmentNotSet - 
+	// ErrEnvironmentNotSet -
 	ErrEnvironmentNotSet = errors.New("expected environment var not set")
 )

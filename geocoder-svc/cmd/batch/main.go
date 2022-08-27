@@ -152,7 +152,7 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 	// update the cache with the REJECTED status if this call fails...
 	go func() {
 
-		writerCtx, cx := context.WithTimeout(context.Background(), time.Second * 30) 
+		writerCtx, cx := context.WithTimeout(context.Background(), time.Second*30)
 		defer cx()
 
 		storageLogger := log.WithFields(log.Fields{

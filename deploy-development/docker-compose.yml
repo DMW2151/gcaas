@@ -6,8 +6,6 @@ services:
   # see image dockerhub: https://hub.docker.com/r/redislabs/redismod
   search:
     image: redislabs/redismod:latest
-    ports:
-      - 6379:6379
     expose: 
       - 6379
     restart: unless-stopped
@@ -40,6 +38,18 @@ services:
     volumes: 
       - redis_batch_cache_data:/data/
   
+  # redis insight uses `redislabs/redisinsight:latest` and serves on 8001; used for viewing performance metrics 
+  # for redis instance -> see image dockerhub: https://hub.docker.com/r/redislabs/redisinsight
+  insight:
+    image: redislabs/redisinsight:latest
+    ports: 
+      - 8001:8001
+    links:
+      - search
+      - pubsub
+      - edge-cache
+      - batch-cache
+
   # gcaas edge is the HTTP service that is exposed to the user
   gcaas-edge:
     build: 

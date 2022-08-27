@@ -40,9 +40,9 @@ func MustRedisClient(ctx context.Context, r *RedisClientOptions) *redis.Client {
 		Addr:            fmt.Sprintf("%s:%d", r.Host, r.Port),
 		Password:        os.Getenv("REDISCLI_AUTH"),
 		DB:              r.DB,
-		MaxRetries:      5,                           // high retry count w. aggressive backoff - allow large datasets to load into mem on init
-		MinRetryBackoff: time.Millisecond * 128,      // aggressive backoff (up from default of 8 ms)
-		MaxRetryBackoff: time.Millisecond * 1024 * 4, // aggressive backoff (up from default of 512 ms)
+		MaxRetries:      5,                      // high retry count w. aggressive backoff - allow large datasets to load into mem on init
+		MinRetryBackoff: time.Millisecond * 16,  // aggressive backoff (up from default of 8 ms)
+		MaxRetryBackoff: time.Millisecond * 512, // aggressive backoff (up from default of 512 ms)
 		OnConnect:       onConnectRedisHandler,
 	})
 
@@ -86,8 +86,7 @@ func MustListener(addr *string, port *int) net.Listener {
 	return lis
 }
 
-
-// MustSpacesClient - creates a connection to DigitalOcean spaces 
+// MustSpacesClient - creates a connection to DigitalOcean spaces
 func MustSpacesClient() *s3.S3 {
 
 	key := os.Getenv("DO_SPACES_KEY")

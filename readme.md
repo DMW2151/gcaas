@@ -1,19 +1,21 @@
 # Geocoding with Redis
 
-A geocoder is a service for matching addresses to geographic locations and the entities containing those addresses. Geocoders use both geospatial queries and fuzzy text search to resolve a partial address to an address and location (coordinates) from a validated set of addresses.
+A geocoder is a service for matching addresses to geographic locations and the entities containing those addresses. Geocoders use both geospatial queries and full text search to resolve a partial address to an address and location from a validated set of addresses.
 
-For example, if a user wants to resolve the address `TIMES SQ MANHATTAN`, a geocoder may use a full text search algorithm to propose the following addresses:
+For example, if a user wants to resolve the value `TIMES SQ MANHATTAN` to a proper address, a geocoding service may use a full text search algorithm to propose the following addresses:
 
-- 5 TIMES SQUARE MANHATTAN 10036  ( -73.98723, 40.755985 )
-- 10 TIMES SQUARE MANHATTAN 10018 ( -73.98687, 40.754963 )
-- 11 TIMES SQUARE MANHATTAN 10036 ( -73.98984, 40.756763 )
+- 5 TIMES SQUARE MANHATTAN 10036  , ( -73.98723, 40.755985 )
+- 10 TIMES SQUARE MANHATTAN 10018 , ( -73.98687, 40.754963 )
+- 11 TIMES SQUARE MANHATTAN 10036 , ( -73.98984, 40.756763 )
 
-This application uses Redis Search and PubSub to provide a syncronous and asyncrounous geocoding service.
+This application uses Redis Search and PubSub to provide both a synchronous and asynchronous batch geocoding service.
 
 ## Introduction Video
 
 
-## Usage
+## Application Description
+
+![insights](./_arch.jpg)
 
 Please refer to service and database names in the [architecture pdf](https://github.com/DMW2151/gcaas/blob/main/_arch.pdf) while reading the following sub-sections. In the following examples I default to the commands relevant for **forward** geocoding unless specified. This application exposes syncronous and asyncronous functionality.
 
@@ -33,7 +35,7 @@ curl -XPOST https://gc.dmw2151.com/geocode/ \
           "latitude": -73.909355,
           "longitude": 40.676468
         },
-        "id": "address:50d17807-7dbd-41da-86c5-20c24f78ab36"
+        "id": "address:50d17807-7dbd-41da-86c5-20c24f78ab36" 
       },
       "normed_confidence": 1,
       "full_street_address": "2111 ATLANTIC AVE BROOKLYN 11233"
@@ -46,45 +48,47 @@ curl -XPOST https://gc.dmw2151.com/geocode/ \
 * The asyncronous geocoding API is diagramed on page two of the PDF above. The API allows a user to submit a batch of addresses to the API and download a file with the best match from the validation set for each address in the query. The asyncronous geocoding API has two endpoints.
 
 	* `/batch/` - Allows for the submission of a new batch of data.
-```bash
-# Request - Creates a New Batch w. Three Addresses
-curl -XPOST https://gc.dmw2151.com/batch/ \
-	-d '{ 
-		"method": "FWD_FUZZY", 
-        "query_addr": [
-                "ATLANTIC AVE BROOKLYN",
-                "WALL STREET MANHATTAN",
-                "509 MAIN ST",
-        ]
-	}' 
 
-# Response - Acknowledges Batch Creation and Gives UUID for Status Updates
-{
-	"id": "60f011eb-3817-4b67-abed-af4a9aa50623",
-	"status": 1,
-	"update_time": {
-		"seconds": 1661575183,
-		"nanos": 391420781
+	```bash
+	# Request - Creates a New Batch w. Three Addresses
+	curl -XPOST https://gc.dmw2151.com/batch/ \
+		-d '{ 
+			"method": "FWD_FUZZY", 
+	        "query_addr": [
+	                "ATLANTIC AVE BROOKLYN",
+	                "WALL STREET MANHATTAN",
+	                "509 MAIN ST",
+	        ]
+		}' 
+
+	# Response - Acknowledges Batch Creation and Gives UUID for Status Updates
+	{
+		"id": "60f011eb-3817-4b67-abed-af4a9aa50623",
+		"status": 1,
+		"update_time": {
+			"seconds": 1661575183,
+			"nanos": 391420781
+		}
 	}
-}
-```
+	```
 
 	* `/batch/${BATCH_UUID}` - returns the status of the batch, if the batch is completed, the body will include a signed URL that can be used to download or share the results for several days.
-```bash
-# Request - Get Status
-curl -XGET https://gc.dmw2151.com/batch/60f011eb-3817-4b67-abed-af4a9aa50623
 
-# Response - Get Status -> OK 
-{
-	"id": "60f011eb-3817-4b67-abed-af4a9aa50623",
-	"status": 5, 
-	"update_time": {
-		"seconds": 1661575185,
-		"nanos": 391420781
+	```bash
+	# Request - Get Status
+	curl -XGET https://gc.dmw2151.com/batch/60f011eb-3817-4b67-abed-af4a9aa50623
+
+	# Response - Get Status -> OK 
+	{
+		"id": "60f011eb-3817-4b67-abed-af4a9aa50623",
+		"status": 5, 
+		"update_time": {
+			"seconds": 1661575185,
+			"nanos": 391420781
+		}
+		"download_path": "https://gcaas-data-storage.nyc3.digitaloceanspaces.com/datasets/...."
 	}
-	"download_path": "https://gcaas-data-storage.nyc3.digitaloceanspaces.com/datasets/...."
-}
-```
+	```
 
 -------------
 
@@ -199,24 +203,170 @@ The asyncronous geocoding API makes requests through `Geocoder Edge` and uses `R
 
 ### Performance Benchmarks
 
+This is a new application, so there are no prior benchmarks. I ran the following quick tests against the synchronous 
+endpoint, `https://gc.dmw2151.com/geocode/` while the New York City 1M dataset was loaded into the search instance. With low load on the system, the request resolves almost immediately (\~80ms)
 
+```bash
+curl -w "@timing-fmt.txt" -o /dev/null -s https://gc.dmw2151.com/geocode \
+	-d '{"method": "FWD_FUZZY", "max_results": 3, "query_addr": "ATLANTIC AVE BROOKLYN"}'  
+
+       timmelookup:  0.006658s
+      time_connect:  0.028724s
+   time_appconnect:  0.056905s
+  time_pretransfer:  0.056950s
+     time_redirect:  0.000000s
+time_starttransfer:  0.080518s
+                     ----------
+        time_total:  0.080624s
+```
+
+To simulate a higher load situation, I created a list of 1000 UNIQUE partial addresses samples from the New York City 1M datset to send to the FWD geocoding endpoint. I sent these over the wire with parallelism == 8 and found that the API did slow down a bit, but is still in an acceptable range.
+
+```bash
+time (cat nyc_address_sample.txt |\
+	xargs -P 8 -I % curl -o /dev/null -s https://gc.dmw2151.com/geocode/ -d '{"method": "FWD_FUZZY", "max_results": 3, "query_addr": "%I"}')
+
+# (21.875 seconds * 8 clients ) / 1000 requests -> ~175ms / request
+15.32s user 9.30s system 112% cpu 21.875 total
+```
+
+However, I would strongly discourage this usage of the synchronous API in this way. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode dozens or hundreds of locations. For more comments on performance, you can refer to the video associated with this project.
 
 
 ## Running Locally
 
-[Make sure you test this with a fresh clone of your repo, these instructions will be used to judge your app.]
-
-
 ### Prerequisites
+
+These instructions were tested on a machine with the following software. Any modern MacOS (M1 or X86) or other Unix based machine should be able to follow these instructions without issue.
 
 - docker -> `Docker version 20.10.14, build a224086`
 - docker-compose -> `docker-compose version 1.29.2`
+- docker-desktop -> `4.11.1 (84025)`
 - go -> `go version go1.18.5 darwin/amd64`
+- kernel info -> `21.5.0 Darwin Kernel Version 21.5.0: Tue Apr 26 21:08:22 PDT 2022; root:xnu-8020.121.3~4/RELEASE_X86_64 x86_64`
 
 
 ### Local Installation
 
-[Insert instructions for local installation]
+#### Section 1 - Deploying Services
+
+Local installation does not involve deploying any paid resources to a cloud or accessing any resources from `gc.dmw2151.com`. However, it does require building and pulling all containers used in the project. I've built very lightweight service images, but machines with <4GB of RAM to allocate to Docker may struggle a bit on build ( *Estimated Time: 1 - 3 minutes*)
+
+- Change directories to `./deploy-development` and run `docker-compose up`. On the first run, this will build all containers associated with the project. Once the build has finished, you should be able to run `docker stats` and see each of the following containers' resource usage. You can also run `docker ps` to see the ports that are exposed from the application to our `localhost`. If you'd like to tail the logs while you send requests to the service, you can also run `docker compose logs --follow` (highly recommended)
+
+```bash
+# Result of `docker stats`
+CONTAINER ID   NAME                                  CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O     PIDS                                                                                                    
+0671cdfe9e79   deploy-development_insight_1          0.04%     84.71MiB / 3.842GiB   2.15%     8.59kB / 3.69kB   0B / 9.4MB    9                                    
+e5d70506fe54   deploy-development_gcaas-edge_1       0.00%     16.69MiB / 3.842GiB   0.42%     7.84kB / 5.93kB   12.7MB / 0B   7                                       
+3d118f6c80c3   deploy-development_gcaas-batch_1      0.14%     18MiB / 3.842GiB      0.46%     12.5kB / 14.6kB   14.6MB / 0B   7                                        
+5350f9bee4e6   deploy-development_gcaas-worker_1     0.07%     16.43MiB / 3.842GiB   0.42%     9.28kB / 11.3kB   13.3MB / 0B   6                                         
+22971f9a1fd4   deploy-development_gcaas-mgmt_1       0.00%     15.16MiB / 3.842GiB   0.39%     2.66kB / 370B     12MB / 0B     7                                       
+037e6a3ac6eb   deploy-development_gcaas-geocoder_1   0.00%     15.6MiB / 3.842GiB    0.40%     5.54kB / 3.42kB   12.4MB / 0B   6                                           
+2839c5f4e537   deploy-development_edge-cache_1       0.16%     2.328MiB / 3.842GiB   0.06%     3.13kB / 297B     0B / 0B       5                                       
+3ce695bbf297   deploy-development_pubsub_1           0.17%     2.379MiB / 3.842GiB   0.06%     25.3kB / 13.8kB   0B / 0B       5                                    
+ea7addd728e5   deploy-development_search_1           3.22%     23.45MiB / 3.842GiB   0.60%     3.82kB / 731B     9.7MB / 0B    27                                   
+4699cbf81461   deploy-development_batch-cache_1      0.16%     3.117MiB / 3.842GiB   0.08%     3.33kB / 434B     3.17MB / 0B   5
+```
+
+```bash
+# Result of `docker ps`
+CONTAINER ID   IMAGE                               COMMAND                  CREATED          STATUS          PORTS                      NAMES                       
+0bb1faf8ddc4   deploy-development_gcaas-edge       "/cmd/edge/edge ' --…"   8 seconds ago    Up 7 seconds    0.0.0.0:2151->2151/tcp     deploy-development_gcaas-edge_1
+b31daee0688f   redislabs/redisinsight:latest       "bash ./docker-entry…"   9 seconds ago    Up 8 seconds    0.0.0.0:8001->8001/tcp     deploy-development_insight_1                                                                   
+bf4ed04049c3   deploy-development_gcaas-geocoder   "/cmd/geocoder/geoco…"   9 seconds ago    Up 8 seconds    0.0.0.0:50051->50051/tcp   deploy-development_gcaas-geocoder_1
+3e35bcfaf658   deploy-development_gcaas-mgmt       "/cmd/mgmt/mgmt ' --…"   9 seconds ago    Up 8 seconds    0.0.0.0:50052->50052/tcp   deploy-development_gcaas-mgmt_1                                                                
+3d118f6c80c3   deploy-development_gcaas-batch      "/cmd/batch/batch ' …"   7 minutes ago    Up 7 minutes    0.0.0.0:50053->50053/tcp   deploy-development_gcaas-batch_1
+5350f9bee4e6   deploy-development_gcaas-worker     "/cmd/worker/worker …"   7 minutes ago    Up 7 minutes                               deploy-development_gcaas-worker_1
+172dbac9549f   redislabs/redismod:latest           "redis-server --load…"   10 seconds ago   Up 10 seconds   6379/tcp                   deploy-development_search_1
+2839c5f4e537   redis:alpine3.16                    "docker-entrypoint.s…"   7 minutes ago    Up 7 minutes    6379/tcp                   deploy-development_edge-cache_1
+3ce695bbf297   redis:alpine3.16                    "docker-entrypoint.s…"   7 minutes ago    Up 7 minutes    6379/tcp                   deploy-development_pubsub_1
+4699cbf81461   redis:alpine3.16                    "docker-entrypoint.s…"   7 minutes ago    Up 7 minutes    6379/tcp                   deploy-development_batch-cache_1
+```
+
+- To confirm that all is up and running, send a test request to `http://localhost:2151/geocode`. Because we haven't seeded our dataset with any data, we expect the following request to return an empty response.
+
+
+```bash
+# Request - Test Request to Confirm Edge Service is Running - Should Return No Data, but show HTTP Status 200
+curl -i -XPOST http://localhost:2151/geocode/ \
+	-d '{"method": "FWD_FUZZY", "max_results": 1, "query_addr": "ATLANTIC AVE"}' 
+HTTP/1.1 200 OK
+```
+
+#### Section 2 - Seeding the Location Index
+
+In the local deployment configuration, `Geocoder Edge` is served on `:2151` and exposed to the host. In production, **ONLY** this service is available to the outside world. The local configuration for this application exposes a service called `GCAAS Management` on `:50051`. This service is used by the developer (me) to manage the data available in the production. In this step, we'll seed the location index by sending data through `GCAAS Management`.
+
+This application could accept any dataset of addresses provided they met the ingestion criteria. For the time being, we'll use a dataset I'll refer to as `NYC Addresses 1M`. This [dataset](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwjM3PeE7Of5AhVpKlkFHRkqCkMQFnoECBQQAQ&url=https%3A%2F%2Fdata.cityofnewyork.us%2FCity-Government%2FNYC-Address-Points%2Fg6pj-hd8k&usg=AOvVaw2XeK_R5WgxJoP6Fjq61GZ1) contains 967,000 address points from New York City.
+
+To download the NYC address dataset, change directories to `./misc/data-processing` and run `bash ./download-nyc.sh`. This script downloads and processes the raw NYC address data into a format that `GCAAS Mangement` accepts. (*Estimated Time: 1 - 2 minutes*)
+
+You can inspect the first few rows of the cleaned dataset, `./misc/data-processing/_data/prepared_nyc.csv` with the following:
+
+```bash
+# Get first few rows of ingestion dataset
+head -n 10 ./_data/prepared_nyc.csv 
+```
+
+```csv
+ADDRESS_ID,the_geom,H_NO FULL_STREE BOROCODE NEW YORK ZIPCODE                                                                               
+3066687,POINT (-73.94890840262882 40.681024605257534),54 MACON ST BROOKLYN NEW YORK 11216                                                                                  
+3064205,POINT (-73.94867469809614 40.6862985441319),438 GATES AVE BROOKLYN NEW YORK 11216
+3063204,POINT (-73.95302508854085 40.6880523616944),442 GREENE AVE BROOKLYN NEW YORK 11216
+3065757,POINT (-73.94380067421258 40.68347876343482),411 TOMPKINS AVE BROOKLYN NEW YORK 11221
+3066531,POINT (-73.9422673814714 40.682519773924874),290 HALSEY ST BROOKLYN NEW YORK 11216
+3054846,POINT (-73.9386413566232 40.68971323068642),742 GREENE AVE BROOKLYN NEW YORK 11221
+3060301,POINT (-73.94438289946332 40.699143336060835),176 THROOP AVE BROOKLYN NEW YORK 11206
+3060994,POINT (-73.9445761259967 40.69528388494299),185 VERNON AVE BROOKLYN NEW YORK 11206
+3062642,POINT (-73.95194963018604 40.68967344199405),574 LAFAYETTE AVE BROOKLYN NEW YORK 11205
+```
+
+I've provided a short script, `./geocoder-svc/cmd/seed-address-dataset/main.go`, that can be used to populate the location index. If you do not have Go installed, please run through the [installation guide](https://go.dev/doc/install) for your OS. To run this script, change directories into `./geocoder-svc/cmd/seed-address-dataset/`and run the following:
+
+```bash
+go run . --rpc-server localhost --rpc-server-port 50052 --file ./../../../misc/data-processing/_data/prepared_nyc.csv
+```
+
+The above command calls the management server and streams the contents of `./../../../misc/data-processing/_data/prepared_nyc.csv` into Redis (*Estimated Time: <1 minute*)
+
+
+Finally, we can retry the query that previously returned no results. 
+
+```bash
+# Request
+curl -i -XPOST http://localhost:2151/geocode/ -d '{"method": "FWD_FUZZY", "max_results": 1, "query_addr": "ATLANTIC AVE"}'
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Sat, 27 Aug 2022 21:22:31 GMT
+Content-Length: 208
+
+# Response
+{
+  "result": [
+    {
+      "address": {
+        "id": "address:3043414",
+        "location": {
+          "latitude": -73.932465,
+          "longitude": 40.67734
+        }
+      },
+      "normed_confidence": 1,
+      "composite_street_address": "1748 ATLANTIC AVE BROOKLYN NEW YORK 11213"
+    }
+  ],
+  "num_results": 1
+}
+```
+
+
+#### Section 3 - Using Redis Insights
+
+Now that we have a working service that's reading from the `Redis Search` instance, we should understand how its performing. The local configuration runs Redis Insights on `:8001`. You can visit the local insights instance on localhost [here](http://localhost:8001). You can connect to profile the search instance using the parameters shown below:
+
+![insights](./misc/imgs/insights.png)
 
 
 ## Deployment
@@ -228,14 +378,12 @@ This application does not provide a quick deploy option, please refer to the loc
 
 There are some weaknesses in this service right now, the following would improve user experience, performance, etc.
 
-* Set memory limits
+* Set Memory Limits - In the current configuration, different instances have different resource requirements, the application's deployment could be safer if these were scoped and defined.
 
-* Retries
+* Backpressure / Retries - In the current application, there's minimal logic for retries, timed backoffs, etc. In short, the properties you'd write into a resilient distributed system aren't present.
 
-* Backpressure handling 
+* High Availability - The application is not deployed for HA. Because we run on a single node, we've got every service sharing the same underlying pool of resources, there is no redundancy, etc. A proper deployment of this service would involve migrating to either DigitalOcean's K8s offering, or a self-hosted Consul + Nomad deployment.
 
-* HA redis
+* Open API Specificaiton - The API behavior is not well documented to the public. [Open API](https://swagger.io/specification/) is a specificattion that makes documenting services easier, but I haven't yet written this spec.
 
-* Enums
-
-* Open API Spec
+* Datasets - The service is designed to handle *any* dataset with id, location, and address. There are quite a few national datasets available that could be interesting, e.g. [NAD](https://www.transportation.gov/gis/national-address-database/national-address-database-nad-disclaimer).

@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"os"
-	"strconv"
 	"strings"
+	"time"
 
 	// internal
 	srv "github.com/dmw2151/geocoder/geocoder-svc/internal"
@@ -24,14 +24,14 @@ import (
 var (
 	// rpc service options
 	rpcServerHost = flag.String("rpc-server", "gc-grpc.dmw2151.com", "host addresss of the gcaas grpc server to forward ingest requests")
-	rpcServerPort = flag.Int("rpc-server-port", 50051, "port of the gcaas grpc server to forward ingesst requests")
+	rpcServerPort = flag.Int("rpc-server-port", 50052, "port of the gcaas grpc server to forward ingesst requests")
 
 	// file processing options
-	targetFile = flag.String("file", "./../../../_data/nyc_addr.csv", "The file to load for geocoder demo")
+	targetFile = flag.String("file", "./../misc/data-processing/_data/prepared_nyc.csv", "The file to load for geocoder demo")
 )
 
 // nColsDOBReport ...
-const nColsDOBReport = 23
+const expectedColumnsInputData = 3
 
 // slimLineCounter ...
 // https://stackoverflow.com/questions/24562942/golang-how-do-i-determine-the-number-of-lines-in-a-file-efficiently
@@ -67,11 +67,10 @@ func slimLineCounter(r io.Reader) (numTotalLines int, err error) {
 	}
 }
 
-// csvToAddressProto
-func csvToAddressProto(fp string) ([]*pb.Address, error) {
+// fileToAddressProtoArray -
+func fileToAddressProtoArray(fp string) ([]*pb.Address, error) {
 
-	// open file && pcount the number of addresses to allocate []*pb.Address
-	// with fixed length
+	// open file && pcount the number of addresses to allocate []*pb.Address with fixed length
 	fi, err := os.Open(fp)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed reading data file")
@@ -82,12 +81,9 @@ func csvToAddressProto(fp string) ([]*pb.Address, error) {
 		return nil, errors.Wrap(err, "failed counting")
 	}
 
-	// init pre-allocated array for addresses - assumes a small-ish number
-	// of addresses (10**7)
-	var (
-		addresses = make([]*pb.Address, nAddresses-1)
-		addrIdx   = 0
-	)
+	// init pre-allocated array for addresses - assumes a small-ish number of addresses (10**7)
+	var addresses = make([]*pb.Address, nAddresses-1)
+	var addrIdx = 0
 
 	fi.Seek(0, 0)
 	scanner := bufio.NewScanner(fi)
@@ -96,27 +92,21 @@ func csvToAddressProto(fp string) ([]*pb.Address, error) {
 		if addrIdx > 0 {
 			// Extract Location and Address Data From CSV
 			content := strings.Split(scanner.Text(), ",")
-			if len(content) != nColsDOBReport {
+
+			if len(content) != expectedColumnsInputData {
 				log.WithFields(log.Fields{
-					"n_expected_elems": nColsDOBReport,
+					"n_expected_elems": expectedColumnsInputData,
 					"n_observed_elems": len(content),
 				}).Warn("unexpected data struct; skipping")
 			}
 
-			// Location uses a string representaton of the point -> e.g. `POINT (-73.94890840262882 40.681024605257534)`
-			addrLocation := srv.PointFromLocationString(content[0])
-			boroInt, _ := strconv.Atoi(content[8])
+			addrLocation := srv.PointFromLocationString(content[1])
 
 			// Compose result and apppend to addresses to send
 			addresses[addrIdx-1] = &pb.Address{
-				Id:       content[2] + content[1], // concatenation of the building ID and the address ID
-				Location: addrLocation,            // extracted from pointFromString
-				Data: &pb.AddressData{
-					HouseNum:       content[3],       // e.g. "451A",
-					FullStreetName: content[22],      // e.g. "WINTHROP ST "
-					Borocode:       pb.Boro(boroInt), // e.g. "3" -> "BROOKLYN"
-					Zipcode:        content[9],       // e.g  "11203-XXXX"
-				},
+				Id:                     content[0],
+				Location:               addrLocation,
+				CompositeStreetAddress: content[2],
 			}
 		}
 		addrIdx++
@@ -125,11 +115,11 @@ func csvToAddressProto(fp string) ([]*pb.Address, error) {
 	return addresses, nil
 }
 
-// writeNYCAddresses sends a sequence of points to server and expects to get a RouteSummary from server.
-func writeNYCAddresses(client pb.GeocoderClient, path string) {
+// writeAddressData sends a sequence of points to server and expects to get a RouteSummary from server.
+func writeAddressData(client pb.ManagementClient, path string) {
 
 	// defer cancellation until done
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*180)
 	defer cancel()
 
 	// call rpc - open connection and begin streaming address points into the service
@@ -137,11 +127,11 @@ func writeNYCAddresses(client pb.GeocoderClient, path string) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
-		}).Error("/geocoder.Geocoder/InsertorReplaceAddressData; failed initializing stream")
+		}).Error("/geocoder.Management/InsertorReplaceAddressData; failed initializing stream")
 	}
 
 	// iterate thru the parsed csv data, queuing up to the server
-	addresses, err := csvToAddressProto(path)
+	addresses, err := fileToAddressProtoArray(path)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err":      err,
@@ -154,7 +144,7 @@ func writeNYCAddresses(client pb.GeocoderClient, path string) {
 			log.WithFields(log.Fields{
 				"err": err,
 				"msg": a,
-			}).Error("/geocoder.Geocoder/InsertorReplaceAddressData; failed stream.Send()")
+			}).Error("/geocoder.Management/InsertorReplaceAddressData; failed stream.Send()")
 		}
 	}
 
@@ -163,13 +153,13 @@ func writeNYCAddresses(client pb.GeocoderClient, path string) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
-		}).Error("/geocoder.Geocoder/InsertorReplaceAddressData; failed recv")
+		}).Error("/geocoder.Management/InsertorReplaceAddressData; failed recv")
 	}
 
 	log.WithFields(log.Fields{
 		"insert.success":     reply.Success,
 		"insert.num_objects": reply.TotalObjectsWritten,
-	}).Info("/geocoder.Geocoder/InsertorReplaceAddressData; success")
+	}).Info("/geocoder.Management/InsertorReplaceAddressData; success")
 
 }
 
@@ -177,8 +167,9 @@ func main() {
 	flag.Parse()
 
 	// Init client and insert test data
-	geocoderConn := srv.MustRPCClient(*rpcServerHost, *rpcServerPort)
-	pb.NewGeocoderClient(geocoderConn)
-	writeNYCAddresses(client, *targetFile)
+	managementConn := srv.MustRPCClient(*rpcServerHost, *rpcServerPort)
+	managementClient := pb.NewManagementClient(managementConn)
 
+	// write the target file to the redis instance
+	writeAddressData(managementClient, *targetFile)
 }

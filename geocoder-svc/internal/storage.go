@@ -1,14 +1,13 @@
 package srv
 
 import (
-	//  std library	
-	"os"
-	"fmt"
+	//  std library
 	"bytes"
 	"encoding/json"
-	"time"
+	"fmt"
 	"io"
-
+	"os"
+	"time"
 
 	// external
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,28 +25,26 @@ const (
 	// batchServerStorageEndPoint
 	batchServerStorageEndPoint = "https://nyc3.digitaloceanspaces.com"
 
-	// resultsAvailableDuration - 
+	// resultsAvailableDuration -
 	resultsAvailableDuration = time.Minute * 60 * 24
-
 )
 
 // GeneratePresignedURL
 func GeneratePresignedURL(client *s3.S3, fileKey string) (string, error) {
 	req, _ := client.GetObjectRequest(&s3.GetObjectInput{
-	    Bucket: aws.String(batchServerStorageSpace),
-	    Key:    aws.String(fmt.Sprintf("%s/%s", batchServerStoragePrefix, fileKey)),
+		Bucket: aws.String(batchServerStorageSpace),
+		Key:    aws.String(fmt.Sprintf("%s/%s", batchServerStoragePrefix, fileKey)),
 	})
 	return req.Presign(resultsAvailableDuration)
 }
 
-
 func GetBatchFromStorage(client *s3.S3, fileKey string, data proto.Message) error {
 	res, err := client.GetObject(&s3.GetObjectInput{
-	    Bucket: aws.String(batchServerStorageSpace),
-	    Key:    aws.String(fmt.Sprintf("%s/%s", batchServerStoragePrefix, fileKey)),
+		Bucket: aws.String(batchServerStorageSpace),
+		Key:    aws.String(fmt.Sprintf("%s/%s", batchServerStoragePrefix, fileKey)),
 	})
 	if err != nil {
-	    return err
+		return err
 	}
 
 	b := []byte{}
@@ -83,7 +80,7 @@ func PersistBatchToStorage(client *s3.S3, data any, fileKey string) error {
 		f.Write(b)
 		return nil
 	}
-		
+
 	// write to DigitalOcean //
 	_, err = client.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(batchServerStorageSpace),
