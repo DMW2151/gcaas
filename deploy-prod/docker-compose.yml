@@ -1,0 +1,91 @@
+version: '3'
+
+services:
+  
+  # `redislabs/redismod:latest` bundles together the latest stable releases of Redis and select Redis modules
+  # see image dockerhub: https://hub.docker.com/r/redislabs/redismod
+  redis:
+    image: redislabs/redismod:latest
+    expose: 
+      - 6379
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data/
+
+  # simple `redis:alpine3.16` -> used as a second redis instance for caching; could use the same instance,
+  # but want to keep load off our main redis (see above)
+  cache:
+    image: redis:alpine3.16
+    expose: 
+      - 6379
+    restart: unless-stopped
+
+  # redis insight uses `redislabs/redisinsight:latest` and serves on 8001; used for viewing performance metrics 
+  # for redis instance -> see image dockerhub: https://hub.docker.com/r/redislabs/redisinsight
+  insight:
+    image: redislabs/redisinsight:latest
+    ports: 
+      - 8001:8001
+    depends_on:
+      - redis
+      - cache
+    links:
+      - redis
+      - cache
+    
+  # gcaas is the grpc service that sits between the edge service and the redismod instance
+  gcaas-grpc:
+    image: registry.digitalocean.com/gcaas-reg/gcaas-grpc:0.0.1
+    expose: 
+      - 50051
+    ports: 
+      - 50051:50051
+    restart: unless-stopped
+    command: /cmd/grpc/geocode \
+        --host 0.0.0.0 --port 50051 \
+        --redis-host redis --redis-port 6379 --redis-db 0
+    depends_on:
+      - redis
+    links:
+      - redis
+
+  # gcaas is the grpc service that sits between the edge service and the redismod instance
+  gcaas-batch:
+    image: registry.digitalocean.com/gcaas-reg/gcaas-batch:0.0.1
+    expose: 
+      - 50051
+    ports: 
+      - 50051:50051
+    restart: unless-stopped
+    command: /cmd/grpc/geocode \
+        --host 0.0.0.0 --port 50051 \
+        --redis-host redis --redis-port 6379 --redis-db 0
+    depends_on:
+      - redis
+    links:
+      - redis
+
+  # gcaas edge is the HTTP service that is exposed to the user
+  gcaas-edge:
+    image: registry.digitalocean.com/gcaas-reg/gcaas-edge:0.0.1
+    expose: 
+      - 2151
+    ports: 
+      - 2151:2151
+    restart: unless-stopped
+    command: /cmd/public/geocode \
+        --rpc-server-host gcaas-grpc --rpc-server-port 50051 \
+        --redis-host cache --redis-port 6379 --redis-db 0 \
+        --host 0.0.0.0 --port 2151 
+    depends_on:
+      - cache
+      - gcaas-grpc
+    links:
+      - cache
+      - gcaas-grpc
+    
+volumes: 
+  redis_data:
+  
+networks:
+  default:

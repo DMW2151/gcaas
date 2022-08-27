@@ -52,7 +52,7 @@ resource "digitalocean_droplet" "gc" {
   // basic
   name  = "geocoder-main"
   image = "ubuntu-22-04-x64" // hardcoded b.c. of userdata script
-  size  = "gd-2vcpu-8gb"     // see note above...
+  size  = "s-2vcpu-4gb-amd"  // see note above...
 
   // networking
   vpc_uuid = digitalocean_vpc.core.id
@@ -62,19 +62,9 @@ resource "digitalocean_droplet" "gc" {
   ssh_keys = [data.digitalocean_ssh_key.droplet.id]
 
   // provisioning
-  connection {
-    host        = self.ipv4_address
-    type        = "ssh"
-    private_key = pathexpand("~/.ssh/${data.digitalocean_ssh_key.droplet.name}")
-    timeout     = "30s"
-  }
-
-  provisioner "file" {
-    source      = "${path.module}/../docker-compose.yml"
-    destination = "docker-compose.yml"
-  }
-
-  user_data = file("${path.module}/provisioning/droplet.sh")
+  user_data = templatefile(
+    "${path.module}/provisioning/droplet.sh", { DIGITALOCEAN_TOKEN = var.digitalocean_token }
+  )
 
   // monitoring - allow DO to collect metrics w. the agent; expose in the monitoring tab
   droplet_agent = true

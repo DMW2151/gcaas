@@ -23,7 +23,7 @@ resource "docker_image" "gcaas_grpc" {
     dockerfile = "${path.module}/../srv/cmd/grpc/Dockerfile"
   }
   triggers = {
-    src_code_hash = sha1(join("", [for f in fileset(path.module, "./../srv/*") : filesha1(f)]))
+    src_code_hash = sha1(join("", [for f in fileset(path.module, "./../srv/**") : filesha1(f)]))
   }
 }
 
@@ -36,7 +36,7 @@ resource "docker_image" "gcaas_edge" {
     dockerfile = "${path.module}/../srv/cmd/public/Dockerfile"
   }
   triggers = {
-    src_code_hash = sha1(join("", [for f in fileset(path.module, "./../srv/*") : filesha1(f)]))
+    src_code_hash = sha1(join("", [for f in fileset(path.module, "./../srv/**") : filesha1(f)]))
   }
 }
 

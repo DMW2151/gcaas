@@ -1,0 +1,39 @@
+
+  "app_name": "Geocodidng with Redis Search",
+  "description": "Uses Redis Search to match addresses to geographic locations",
+  "hidden": false,
+  "rank": 65535,
+  "type": "Full App",
+  "contributed_by": "Community",
+  "repo_url": "https://github.com/DMW2151/gcaas",
+  "download_url": "https://github.com/DMW2151/gcaas/archive/refs/heads/main.zip",
+  "hosted_url": "https://geocoder.dmw2151.com",
+  "quick_deploy": "false",
+  "deploy_buttons": [],
+  "language": [
+    "Go"
+  ],
+  "redis_commands": [
+    "GET",
+    "SET",
+    "HSET",
+    "FT.SEARCH",
+    "FT.CREATE",
+  ],
+  "redis_features": [
+    "caching",
+    "search"
+  ],
+  "redis_modules": [
+    "RediSearch"
+  ],
+  "app_image_urls": [
+    "https://github.com/redis-developer/basic-caching-demo-nodejs/blob/main/docs/screenshot001.png?raw=true"
+  ],
+  "youtube_url": "https://www.youtube.com/watch?v=...",
+  "special_tags": [
+    "Hackathon"
+  ],
+  "verticals": [],
+  "markdown": "https://github.com/DMW2151/gcaas/readme.md"
+}

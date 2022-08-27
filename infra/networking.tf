@@ -15,14 +15,20 @@ resource "digitalocean_vpc" "core" {
 
 // all tcp (grpc and http) allowed throughout the vpc - though only expect to call HTTP thru load-balancer
 // resource: https://registry.terraform.io/providers/digitalocean/digitalocean/latest/docs/resources/firewall
-resource "digitalocean_firewall" "allow_http" {
-  name = "geocoder-svc-allow-http"
+resource "digitalocean_firewall" "allow_svc_traffic" {
+  name = "geocoder-svc-allow-in-vpc"
 
   droplet_ids = [digitalocean_droplet.gc.id]
 
   inbound_rule {
     protocol         = "tcp"
     port_range       = var.http_traffic_port
+    source_addresses = [digitalocean_vpc.core.ip_range]
+  }
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = var.grpc_traffic_port
     source_addresses = [digitalocean_vpc.core.ip_range]
   }
 
@@ -34,8 +40,8 @@ resource "digitalocean_firewall" "allow_http" {
 }
 
 // resource: https://registry.terraform.io/providers/digitalocean/digitalocean/latest/docs/resources/firewall
-resource "digitalocean_firewall" "allow_dev_ssh" {
-  name = "geocoder-svc-allow-ssh"
+resource "digitalocean_firewall" "allow_dev" {
+  name = "geocoder-svc-allow-dev"
 
   droplet_ids = [digitalocean_droplet.gc.id]
 
@@ -44,4 +50,23 @@ resource "digitalocean_firewall" "allow_dev_ssh" {
     port_range       = "22"
     source_addresses = ["${chomp(data.http.ip.body)}/32"]
   }
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = var.grpc_traffic_port
+    source_addresses = ["${chomp(data.http.ip.body)}/32"]
+  }
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = var.http_traffic_port
+    source_addresses = ["${chomp(data.http.ip.body)}/32"]
+  }
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = var.insights_traffic_port
+    source_addresses = ["${chomp(data.http.ip.body)}/32"]
+  }
+
 }

@@ -1,0 +1,148 @@
+// NOTE TO DEV:
+// GENERATE WITH: protoc --go_out=. ./proto/geocoder.proto --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative 
+syntax = "proto3";
+
+option go_package = "geocoder/proto/geocoder.proto";
+package geocoder;
+import "google/protobuf/timestamp.proto";
+
+// Geocoder provides one-shot geocoding, either forward (address -> point) or reverse (point -> address)
+service Geocoder {
+  rpc Geocode(GeocodeRequest) returns (GeocodeResponse) {}  
+  rpc GeocodeBatch( stream GeocodeRequest) returns (stream GeocodeResponse) {}  
+}
+
+// Batch provides an interface to handling
+service Batch {
+  rpc CreateBatch(CreateBatchRequest) returns (BatchStatusResponse) {}  // bleh! verbs!
+  rpc GetBatchStatus(BatchStatusRequest) returns (BatchStatusResponse) {}  
+}
+
+// Management is a private service - used for setting and modifying data in the DB
+service Management {
+  rpc InsertorReplaceAddressData(stream Address) returns (IOResponse) {} //
+}
+
+
+// GEOCODE SERVICE //
+
+// Boro defines one of 5 nyc boros + 3 adjacent regions + 1 undefined status
+enum Boro {
+  UNDEFINED = 0;
+  MANHATTAN = 1;
+  BRONX = 2;
+  BROOKLYN = 3;
+  QUEENS = 4;
+  STATEN_ISLAND = 5;
+  NASSAU = 6;
+  WESTCHESTER = 7;
+  NEW_JERSEY = 8;
+}
+
+// Method defines the geocoding method, either forward (address -> point) or reverse (point -> address)
+enum Method {
+  FWD_FUZZY = 0;
+  REV_NEAREST = 1; 
+}
+
+// Point represents latitude-longitude pairs 
+// Latitudes in the range +/- 90 degrees and longitude in the range +/- 180 degrees.
+message Point {
+  float latitude = 1;
+  float longitude = 2;
+}
+
+// AddressData represents the components of an adress from the following data
+// Reference: https://data.cityofnewyork.us/api/views/g6pj-hd8k/files/375ad68c-4cea-45ff-aa9c-8307ae3ed7bb?download=true&filename=AddressPoint.pdf
+message AddressData {
+  string house_num = 1; // Stores the address number. The field supports hyphenated and range based addresses (e.g. 457-459 7th Ave.)
+  string full_street_name = 2;
+  Boro borocode = 3; 
+  string zipcode = 4;
+}
+
+// Address represents a composite address object with an Id, a resolved location, and component data
+message Address {
+  string id = 1;
+  Point location = 2;
+  AddressData data = 23;
+}
+
+// GeocodeRequest canonically represents a request to Geocoder.Geocode, contains one of `Point` or `AddressQuery` (string)
+message GeocodeRequest {
+  oneof query {
+    string address_query = 1;
+    Point point_query = 2;
+  }
+  uint32 max_results = 3;
+  Method method = 4;
+}
+
+// ScoredAddress attaches metadata to a base `Address` message, contains an additional normalized confidence score and
+// the `full_street_address` as identified by the server
+message ScoredAddress {
+  Address address = 1;
+  float normed_confidence = 2;
+  string full_street_address = 3;
+}
+
+// GeocodeResponse canonically represents a response from Geocoder.Geocode, composed of a 
+message GeocodeResponse {
+  repeated ScoredAddress result = 1;
+  uint32 num_results = 2;
+}
+
+
+// BATCH SERVICE //
+
+// BatchGeocodeStatus - 
+enum BatchGeocodeStatus {
+  UNDEFINED_STATUS = 0;
+  ACCEPTED = 1;
+  REJECTED = 2;
+  IN_QUEUE = 3;
+  SUCCESS = 4;
+  FAILED = 5;
+}
+
+// CreateBatchRequest - 
+message CreateBatchRequest {
+  Method method = 1;
+  repeated string addresses = 2; // This is a bit lazy - should do oneOf but can't nest repeated in there...
+  repeated Point points = 3; // This is a bit lazy - should do oneOf but can't nest repeated in there...
+}
+
+// StatusBatchRequest - 
+message BatchStatusRequest {
+  string id = 1; // uuid
+}
+
+// BatchStatusResponse - 
+message BatchStatusResponse {
+  string id = 1; // uuid
+  BatchGeocodeStatus status = 2; //
+  string download_path = 3;
+  google.protobuf.Timestamp update_time = 4;
+}
+
+// ResolvedAddress - 
+message ResolvedAddress {
+  oneof query {
+      string address_query = 1;
+      Point point_query = 2;
+  }
+  ScoredAddress result = 3; 
+}
+
+message BatchResponse {
+  repeated ResolvedAddress results = 1;
+}
+
+
+// MANAGEMENT SERVICE //
+
+// IOResponse represents a 
+message IOResponse {
+  bool success = 1;
+  int32 total_objects_written = 2;
+}

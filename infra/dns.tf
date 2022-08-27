@@ -21,16 +21,15 @@ resource "digitalocean_record" "gc" {
   type   = "A"
   name   = "gc"
   value  = digitalocean_loadbalancer.http_edge.ip
+  ttl    = 300
 }
 
 // record for the grpc api - private use - "safe" only because we're on a single node
 // resource: https://registry.terraform.io/providers/digitalocean/digitalocean/latest/docs/resources/record
 resource "digitalocean_record" "gc_grpc" {
-  domain   = data.digitalocean_domain.target.id
-  type     = "SRV"
-  name     = "_gcaas._tcp"
-  weight   = 10
-  priority = 10
-  port     = var.grpc_traffic_port
-  value    = digitalocean_droplet.gc.ipv4_address
+  domain = data.digitalocean_domain.target.id
+  type   = "A"
+  name   = "gc-grpc"
+  value  = digitalocean_droplet.gc.ipv4_address
+  ttl    = 300
 }

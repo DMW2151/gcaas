@@ -24,7 +24,13 @@ terraform {
 // configure the digitalocean provider - assumes `digitalocean_token` set externally e.g.
 // terraform apply -var="digitalocean_token=${DIGITALOCEAN_TOKEN}" -auto-approve 
 provider "digitalocean" {
+
+  // auth - general resource mgmt
   token = var.digitalocean_token
+
+  // auth - spaces API
+  spaces_access_id  = var.access_id
+  spaces_secret_key = var.secret_key
 }
 
 // configure the docker provider - uses the local machine to build the image and (regrettably)

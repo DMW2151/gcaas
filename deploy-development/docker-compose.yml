@@ -1,0 +1,166 @@
+version: '3'
+
+services:
+  
+  # `redislabs/redismod:latest` bundles together the latest stable releases of Redis and select Redis modules
+  # see image dockerhub: https://hub.docker.com/r/redislabs/redismod
+  search:
+    image: redislabs/redismod:latest
+    ports:
+      - 6379:6379
+    expose: 
+      - 6379
+    restart: unless-stopped
+    volumes: 
+      - redis_search_data:/data/
+
+  # simple `redis:alpine3.16` -> used as a secondary redis instance for pubsub; could use the same instance,
+  # but want to keep load off our main redis (see above)
+  pubsub:
+    image: redis:alpine3.16
+    expose: 
+      - 6379
+    restart: unless-stopped
+
+  # simple `redis:alpine3.16` -> used as a secondary redis instance for caching; could use the same instance,
+  # but want to keep load off our main redis (see above)
+  edge-cache:
+    image: redis:alpine3.16
+    expose: 
+      - 6379
+    restart: unless-stopped
+
+  # simple `redis:alpine3.16` -> used as a secondary redis instance for caching statuses; could use the 
+  # same instance, but want to keep load off our main redis (see above)
+  batch-cache:
+    image: redis:alpine3.16
+    expose: 
+      - 6379
+    restart: unless-stopped
+    volumes: 
+      - redis_batch_cache_data:/data/
+  
+  # gcaas edge is the HTTP service that is exposed to the user
+  gcaas-edge:
+    build: 
+      context: ./../
+      dockerfile: ./geocoder-svc/cmd/edge/Dockerfile
+    expose: 
+      - 2151
+    ports: 
+      - 2151:2151
+    restart: unless-stopped
+    command: /cmd/edge/edge \
+        --host 0.0.0.0 \
+        --port 2151 \
+        --rpc-server-host gcaas-geocoder \
+        --rpc-server-port 50051 \
+        --batch-server-host gcaas-batch \
+        --batch-server-port 50053 \
+        --redis-host edge-cache \
+        --redis-port 6379 \
+        --redis-db 0 
+    depends_on:
+      - edge-cache
+      - gcaas-geocoder
+    links:
+      - edge-cache
+      - gcaas-geocoder
+
+  # gcaas geocoder is the grpc service that sits between the edge service and the redismod instance
+  # allows for single
+  gcaas-geocoder:
+    build: 
+      context: ./../
+      dockerfile: ./geocoder-svc/cmd/geocoder/Dockerfile
+    expose: 
+      - 50051
+    ports: 
+      - 50051:50051
+    restart: unless-stopped
+    command: /cmd/geocoder/geocoder \
+        --host 0.0.0.0 \
+        --port 50051 \
+        --redis-host search \
+        --redis-port 6379 \
+        --redis-db 0
+    depends_on:
+      - search
+    links:
+      - search
+
+  # gcaas-mgmt is an admin only service used for managing permanent inserts of the data to
+  # the full text search instance
+  gcaas-mgmt:
+    build: 
+      context: ./../
+      dockerfile: ./geocoder-svc/cmd/mgmt/Dockerfile
+    expose: 
+      - 50052
+    ports: 
+      - 50052:50052
+    restart: unless-stopped
+    command: /cmd/mgmt/mgmt \
+        --host 0.0.0.0 \
+        --port 50052 \
+        --redis-host search \
+        --redis-port 6379 \
+        --redis-db 0
+    depends_on:
+      - search
+    links:
+      - search
+    
+  # gcaas-batch is a service used for managing batch requests - handles batch events and batch datasets
+  gcaas-batch:
+    build: 
+      context: ./../
+      dockerfile: ./geocoder-svc/cmd/batch/Dockerfile
+    expose: 
+      - 50053
+    ports: 
+      - 50053:50053
+    restart: unless-stopped
+    command: /cmd/batch/batch \
+        --host 0.0.0.0 \
+        --port 50053 \
+        --redis-host batch-cache \
+        --redis-port 6379 \
+        --redis-db 0 \
+        --pubsub-host pubsub \
+        --pubsub-port 6379 \
+        --pubsub-db 0
+    depends_on:
+      - pubsub
+      - batch-cache
+    links:
+      - pubsub
+      - batch-cache
+    environment:
+      - DO_SPACES_KEY=${DO_SPACES_KEY}
+      - DO_SPACES_SECRET=${DO_SPACES_SECRET}
+
+  # gcaas-batch is a service used for managing batch requests - handles batch events and batch datasets
+  gcaas-worker:
+    build: 
+      context: ./../
+      dockerfile: ./geocoder-svc/cmd/worker/Dockerfile
+    restart: unless-stopped
+    command: /cmd/worker/worker \
+        --pubsub-host pubsub \
+        --pubsub-port 6379 \
+        --pubsub-db 0
+    depends_on:
+      - pubsub
+    links:
+      - pubsub
+    environment:
+      - DO_SPACES_KEY=${DO_SPACES_KEY}
+      - DO_SPACES_SECRET=${DO_SPACES_SECRET}
+
+volumes: 
+  redis_search_data:
+  redis_batch_cache_data:
+  
+networks:
+  default:
