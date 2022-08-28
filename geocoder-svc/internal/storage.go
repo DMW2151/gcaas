@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
-	"io/ioutil"
 
 	// external
 	"github.com/aws/aws-sdk-go/aws"
@@ -61,7 +61,7 @@ func GetBatchFromStorage(client *s3.S3, fileKey string, data proto.Message) erro
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return err 
+		return err
 	}
 
 	return json.Unmarshal(body, data)

@@ -13,6 +13,7 @@ import (
 	pb "github.com/dmw2151/geocoder/geocoder-svc/proto"
 
 	// external
+	"github.com/aws/aws-sdk-go/service/s3"
 	redis "github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -20,7 +21,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -204,7 +204,7 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 
 }
 
-// GetBatchStatus - 
+// GetBatchStatus -
 func (s *BatchServer) GetBatchStatus(ctx context.Context, req *pb.BatchStatusRequest) (*pb.BatchStatusResponse, error) {
 
 	var startTime = time.Now() // call on entry as proxy for use w. cobbled-together request logger

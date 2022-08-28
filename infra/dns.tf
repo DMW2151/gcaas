@@ -24,6 +24,16 @@ resource "digitalocean_record" "gc" {
   ttl    = 300
 }
 
+
+//
+resource "digitalocean_record" "insight" {
+  domain = data.digitalocean_domain.target.id
+  type   = "A"
+  name   = "insight"
+  value  = digitalocean_droplet.gc.ipv4_address
+  ttl    = 300
+}
+
 // record for the grpc api - private use - "safe" only because we're on a single node
 // resource: https://registry.terraform.io/providers/digitalocean/digitalocean/latest/docs/resources/record
 resource "digitalocean_record" "gc_grpc" {
