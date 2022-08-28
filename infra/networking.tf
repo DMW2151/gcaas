@@ -22,7 +22,7 @@ resource "digitalocean_firewall" "allow_svc_traffic" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range            = "1-65335"
+    port_range       = "1-65335"
     source_addresses = [digitalocean_vpc.core.ip_range]
   }
 

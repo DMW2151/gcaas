@@ -24,8 +24,8 @@ terraform {
 
 // configure the digitalocean provider - assumes `digitalocean_token` set externally e.g.
 provider "digitalocean" {
-  token = var.digitalocean_token // auth - general resource mgmt
-  spaces_access_id = var.spaces_access_id 
+  token             = var.digitalocean_token // auth - general resource mgmt
+  spaces_access_id  = var.spaces_access_id
   spaces_secret_key = var.spaces_secret_key
 }
 

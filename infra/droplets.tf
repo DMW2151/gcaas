@@ -63,10 +63,10 @@ resource "digitalocean_droplet" "gc" {
 
   // provisioning
   user_data = templatefile(
-    "${path.module}/provisioning/droplet.sh", { 
+    "${path.module}/provisioning/droplet.sh", {
       DIGITALOCEAN_TOKEN = var.digitalocean_token,
-      DO_SPACES_KEY = var.spaces_access_id,
-      DO_SPACES_SECRET = var.spaces_secret_key, 
+      DO_SPACES_KEY      = var.spaces_access_id,
+      DO_SPACES_SECRET   = var.spaces_secret_key,
     }
   )
 
