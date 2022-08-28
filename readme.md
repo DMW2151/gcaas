@@ -403,7 +403,7 @@ Now that the API is running and data is loaded in, calling the async API should 
 }
 ```
 
-The response above should return immediately (~100ms) acknowledging the batch was created. You should then be able to call the `/batch/${JUST_CREATED_UUID}` endpoint and get the batch status.
+The response above should return immediately (\~100ms) acknowledging the batch was created. You should then be able to call the `/batch/${JUST_CREATED_UUID}` endpoint and get the batch status.
 
 ```bash
 # request - check on newly created batch

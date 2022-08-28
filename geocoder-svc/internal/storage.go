@@ -5,15 +5,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"time"
+	"io/ioutil"
 
 	// external
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"google.golang.org/protobuf/proto"
-	// "google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -52,9 +51,6 @@ func GetBatchFromStorage(client *s3.S3, fileKey string, data proto.Message) erro
 	}
 
 	// production && development case - write to S3/DO Spaces with real credentials
-	var b []byte
-	buf := bytes.NewBuffer(b)
-
 	res, err := client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(batchServerStorageSpace),
 		Key:    aws.String(fmt.Sprintf("%s/%s", batchServerStoragePrefix, fileKey)),
@@ -63,8 +59,12 @@ func GetBatchFromStorage(client *s3.S3, fileKey string, data proto.Message) erro
 		return err
 	}
 
-	io.Copy(buf, res.Body)
-	return json.Unmarshal(b, data)
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err 
+	}
+
+	return json.Unmarshal(body, data)
 }
 
 // persistBatchToStorage - writes a batch request to a storage medium

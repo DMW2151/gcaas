@@ -22,13 +22,7 @@ resource "digitalocean_firewall" "allow_svc_traffic" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range       = var.http_traffic_port
-    source_addresses = [digitalocean_vpc.core.ip_range]
-  }
-
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = var.grpc_traffic_port
+    port_range            = "1-65335"
     source_addresses = [digitalocean_vpc.core.ip_range]
   }
 
@@ -53,7 +47,13 @@ resource "digitalocean_firewall" "allow_dev" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range       = var.grpc_traffic_port
+    port_range       = var.grpc_mgmt_port
+    source_addresses = ["${chomp(data.http.ip.body)}/32"]
+  }
+
+  inbound_rule {
+    protocol         = "tcp"
+    port_range       = var.grpc_geocoder_port
     source_addresses = ["${chomp(data.http.ip.body)}/32"]
   }
 

@@ -36,8 +36,8 @@ resource "digitalocean_loadbalancer" "http_edge" {
     port                     = var.http_traffic_port
     protocol                 = "http"
     path                     = "/health/"
-    check_interval_seconds   = 10
-    response_timeout_seconds = 5
+    check_interval_seconds   = 30
+    response_timeout_seconds = 3
     unhealthy_threshold      = 3
     healthy_threshold        = 3
   }
@@ -63,7 +63,11 @@ resource "digitalocean_droplet" "gc" {
 
   // provisioning
   user_data = templatefile(
-    "${path.module}/provisioning/droplet.sh", { DIGITALOCEAN_TOKEN = var.digitalocean_token }
+    "${path.module}/provisioning/droplet.sh", { 
+      DIGITALOCEAN_TOKEN = var.digitalocean_token,
+      DO_SPACES_KEY = var.spaces_access_id,
+      DO_SPACES_SECRET = var.spaces_secret_key, 
+    }
   )
 
   // monitoring - allow DO to collect metrics w. the agent; expose in the monitoring tab

@@ -5,6 +5,16 @@ variable "digitalocean_token" {
   sensitive = true
 }
 
+variable "spaces_access_id" {
+  type      = string
+  sensitive = true
+}
+
+variable "spaces_secret_key" {
+  type      = string
+  sensitive = true
+}
+
 variable "region" {
   type        = string
   description = "region to deploy all resources into"
@@ -17,7 +27,13 @@ variable "domain" {
   default     = "dmw2151.com"
 }
 
-variable "grpc_traffic_port" {
+variable "grpc_mgmt_port" {
+  type        = string
+  description = "traffic port for geocoder management service"
+  default     = "50052"
+}
+
+variable "grpc_geocoder_port" {
   type        = string
   description = "traffic port for geocoder grpc service"
   default     = "50051"

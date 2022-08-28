@@ -8,10 +8,7 @@ sudo wget https://github.com/digitalocean/doctl/releases/download/v1.79.0/doctl-
 sudo tar xf doctl-1.79.0-linux-amd64.tar.gz
 sudo mv doctl /usr/local/bin
 
-/usr/local/bin/doctl registry login -t $DIGITALOCEAN_TOKEN
-
 # start the geocoder services by pulling from the repo
 # NOTE/TODO :: this via scp on gh action, good enough for now -> easier than configuring 
 # ssh from tf...
-sudo wget https://raw.githubusercontent.com/DMW2151/gcaas/main/docker-compose.yml 
-sudo docker-compose up -d
+sudo wget https://raw.githubusercontent.com/DMW2151/gcaas/main/deploy-prod/docker-compose.yml 

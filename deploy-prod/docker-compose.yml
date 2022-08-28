@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  
+
   # `redislabs/redismod:latest` bundles together the latest stable releases of Redis and select Redis modules
   # see image dockerhub: https://hub.docker.com/r/redislabs/redismod
   search:

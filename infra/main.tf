@@ -15,10 +15,18 @@ terraform {
   }
 }
 
+// APPLY
+// terraform apply -var="digitalocean_token=${DIGITALOCEAN_TOKEN}"  -var "spaces_access_id=${DO_SPACES_KEY}" -var "spaces_secret_key=${DO_SPACES_SECRET}"       
+
+// START ON INSTANCE
+// /usr/local/bin/doctl registry login -t $DIGITALOCEAN_TOKEN
+// sudo ENVIRONMENT="PRODUCTION" DO_SPACES_KEY=${DO_SPACES_KEY} DO_SPACES_SECRET=${DO_SPACES_SECRET} docker-compose up -d
+
 // configure the digitalocean provider - assumes `digitalocean_token` set externally e.g.
-// terraform apply -var="digitalocean_token=${DIGITALOCEAN_TOKEN}" -auto-approve 
 provider "digitalocean" {
   token = var.digitalocean_token // auth - general resource mgmt
+  spaces_access_id = var.spaces_access_id 
+  spaces_secret_key = var.spaces_secret_key
 }
 
 // configure the docker provider - uses the local machine to build the image and (regrettably)

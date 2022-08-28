@@ -79,9 +79,17 @@ resource "docker_image" "gcaas_mgmt" {
   }
 }
 
-
 // push grpc service to DOCR
 // resource: https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource
+resource "null_resource" "docr_push_gcaas_edge" {
+  provisioner "local-exec" {
+    command = "docker push ${digitalocean_container_registry.gcaas.endpoint}/gcaas-edge:0.0.1"
+  }
+  triggers = {
+    image_id_w_sha = docker_image.gcaas_edge.id
+  }
+}
+
 resource "null_resource" "docr_push_gcaas_geocoder" {
   provisioner "local-exec" {
     command = "docker push ${digitalocean_container_registry.gcaas.endpoint}/gcaas-geocoder:0.0.1"
@@ -91,13 +99,29 @@ resource "null_resource" "docr_push_gcaas_geocoder" {
   }
 }
 
-// push http service to DOCR
-// resource: https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource
-resource "null_resource" "docr_push_gcaas_edge" {
+resource "null_resource" "docr_push_gcaas_batch" {
   provisioner "local-exec" {
-    command = "docker push ${digitalocean_container_registry.gcaas.endpoint}/gcaas-edge:0.0.1"
+    command = "docker push ${digitalocean_container_registry.gcaas.endpoint}/gcaas-batch:0.0.1"
   }
   triggers = {
-    image_id_w_sha = docker_image.gcaas_edge.id
+    image_id_w_sha = docker_image.gcaas_batch.id
+  }
+}
+
+resource "null_resource" "docr_push_gcaas_worker" {
+  provisioner "local-exec" {
+    command = "docker push ${digitalocean_container_registry.gcaas.endpoint}/gcaas-worker:0.0.1"
+  }
+  triggers = {
+    image_id_w_sha = docker_image.gcaas_worker.id
+  }
+}
+
+resource "null_resource" "docr_push_gcaas_mgmt" {
+  provisioner "local-exec" {
+    command = "docker push ${digitalocean_container_registry.gcaas.endpoint}/gcaas-mgmt:0.0.1"
+  }
+  triggers = {
+    image_id_w_sha = docker_image.gcaas_mgmt.id
   }
 }
