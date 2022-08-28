@@ -292,18 +292,22 @@ func (gh *GeocoderServerHandler) Query(w http.ResponseWriter, r *http.Request) {
 	switch req.Method {
 	case pb.Method_FWD_FUZZY.String():
 		res, err = gh.geocoderClient.Geocode(ctx, &pb.GeocodeRequest{
-			Query: &pb.GeocodeRequest_AddressQuery{
-				AddressQuery: requestRegexp.ReplaceAllString(req.QueryAddress, "%$1%"), // Levenstien distance of 1 on all words...
+			Query: &pb.Query{
+				Query: &pb.Query_AddressQuery{
+					AddressQuery: requestRegexp.ReplaceAllString(req.QueryAddress, "%$1%"), // Levenstien distance of 1 on all words...
+				},
 			},
 			MaxResults: req.MaxResults,
 			Method:     pb.Method_FWD_FUZZY,
 		})
 	case pb.Method_REV_NEAREST.String():
 		res, err = gh.geocoderClient.Geocode(ctx, &pb.GeocodeRequest{
-			Query: &pb.GeocodeRequest_PointQuery{
-				PointQuery: &pb.Point{
-					Latitude:  req.QueryLongitude,
-					Longitude: req.QueryLatitude,
+			Query: &pb.Query{
+				Query: &pb.Query_PointQuery{
+					PointQuery: &pb.Point{
+						Latitude:  req.QueryLongitude,
+						Longitude: req.QueryLatitude,
+					},
 				},
 			},
 			MaxResults: req.MaxResults,

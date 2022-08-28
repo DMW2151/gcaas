@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"google.golang.org/protobuf/proto"
+	// "google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
@@ -38,7 +39,22 @@ func GeneratePresignedURL(client *s3.S3, fileKey string) (string, error) {
 	return req.Presign(resultsAvailableDuration)
 }
 
+// GetBatchFromStorage
 func GetBatchFromStorage(client *s3.S3, fileKey string, data proto.Message) error {
+
+	// local
+	if env := os.Getenv("ENVIRONMENT"); env == "LOCAL" {
+		b, err := os.ReadFile(fmt.Sprintf("/tmp/%s", fileKey))
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(b, data)
+	}
+
+	// production && development case - write to S3/DO Spaces with real credentials
+	var b []byte
+	buf := bytes.NewBuffer(b)
+
 	res, err := client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(batchServerStorageSpace),
 		Key:    aws.String(fmt.Sprintf("%s/%s", batchServerStoragePrefix, fileKey)),
@@ -47,20 +63,13 @@ func GetBatchFromStorage(client *s3.S3, fileKey string, data proto.Message) erro
 		return err
 	}
 
-	b := []byte{}
-	buf := bytes.NewBuffer(b)
-
-	// todo: not efficient - waste of alot of allocs - oh well; drop in the bucket...
 	io.Copy(buf, res.Body)
-	return proto.Unmarshal(b, data)
+	return json.Unmarshal(b, data)
 }
 
 // persistBatchToStorage - writes a batch request to a storage medium
 // on LOCAL -> local volume; on PROD/DEV -> DigitalOcean Spaces
-func PersistBatchToStorage(client *s3.S3, data any, fileKey string) error {
-
-	// check env var exists
-	env := os.Getenv("ENVIRONMENT")
+func PersistBatchToStorage(client *s3.S3, data proto.Message, fileKey string) error {
 
 	// marshall request into bytes - this isn't great for huge requests, but
 	// don't expect more than 1MB for this service (famous last words, btw)
@@ -70,15 +79,8 @@ func PersistBatchToStorage(client *s3.S3, data any, fileKey string) error {
 	}
 
 	// write to a local volume in the container //
-	if env == "LOCAL" {
-		f, err := os.Create(fmt.Sprintf("/tmp/%s", fileKey))
-		if err != nil {
-			return err
-		}
-
-		defer f.Close()
-		f.Write(b)
-		return nil
+	if env := os.Getenv("ENVIRONMENT"); env == "LOCAL" {
+		return os.WriteFile(fmt.Sprintf("/tmp/%s", fileKey), b, 0644)
 	}
 
 	// write to DigitalOcean //

@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -47,9 +48,8 @@ const (
 	// serverNFieldsForwardResponse - number of expected fields in forward response - assumes fixed across multiple methods
 	serverNFieldsForwardResponse = 3
 
-	// serverInsertionJobMaxDuration - during `InsertorReplaceAddressData`, the max duration the server will allow a
-	// connection to insert data to redis
-	serverInsertionJobMaxDuration = time.Second * 180
+	// batchJobMaxDuration - ...
+	batchJobMaxDuration = time.Second * 180
 )
 
 // GeocoderServer - server API for Geocoder service
@@ -124,11 +124,11 @@ func handleServerResponse(res interface{}, maxResults int64) ([]*pb.ScoredAddres
 		// append all results to addressresults...
 		addressResults[i] = &pb.ScoredAddress{
 			Address: &pb.Address{
-				Location: pt,
-				Id:       Id,
+				Location:               pt,
+				Id:                     Id,
+				CompositeStreetAddress: fullStreetAddress,
 			},
-			NormedConfidence:       float32(confScore / maxConfidence),
-			CompositeStreetAddress: fullStreetAddress,
+			NormedConfidence: float32(confScore / maxConfidence),
 		}
 	}
 	return addressResults, nil
@@ -137,7 +137,7 @@ func handleServerResponse(res interface{}, maxResults int64) ([]*pb.ScoredAddres
 // Forward - run forward geocoding via call to `/geocoder.Geocoder/Geocode`
 func (s *GeocoderServer) Forward(ctx context.Context, req *pb.GeocodeRequest) ([]*pb.ScoredAddress, error) {
 
-	addrQuery := req.GetAddressQuery()
+	addrQuery := req.Query.GetAddressQuery()
 
 	// check conditions we KNON the db server would fail (e.g. addrQuery is `null`) or `req.MaxResults < 0`
 	if strings.Trim(addrQuery, "") == "" {
@@ -160,7 +160,7 @@ func (s *GeocoderServer) Forward(ctx context.Context, req *pb.GeocodeRequest) ([
 // Reverse - run reverse geocoding via call to `/geocoder.Geocoder/Geocode`
 func (s *GeocoderServer) Reverse(ctx context.Context, req *pb.GeocodeRequest) ([]*pb.ScoredAddress, error) {
 
-	ptQuery := req.GetPointQuery()
+	ptQuery := req.Query.GetPointQuery()
 
 	// check conditions we KNON the db server would fail (e.g. addrQuery is `null`) or `req.MaxResults < 0`
 	// here, check query contains invalid coordinates -> throw malformed reqquest
@@ -230,7 +230,67 @@ func (s *GeocoderServer) Geocode(ctx context.Context, req *pb.GeocodeRequest) (*
 	return &pb.GeocodeResponse{
 		Result:     addressResults,
 		NumResults: uint32(len(addressResults)),
+		Query:      req.GetQuery(),
 	}, nil
+}
+
+// RouteChat receives a stream of message/location pairs, and responds with a stream of all
+// previous messages at each of those locations.
+func (s *GeocoderServer) GeocodeBatch(stream pb.Geocoder_GeocodeBatchServer) error {
+
+	var startTime = time.Now()  // call on entry as proxy for use w. cobbled-together request logger
+	var jobSuccess bool         // success flag for insertion request; returned as part of pb.IOResponse
+	var totalObjectsWritten int // total addresses "committed" to redis; returned as part of pb.IOResponse
+	var respCode = codes.OK     // status code; returned as part of pb.IOResponse
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.Background(), batchJobMaxDuration)
+	defer cancel()
+
+	// defer calling a log command w. the request details, blegh...
+	defer func() {
+		reqLogger := log.WithFields(log.Fields{
+			"stream.totalObjectsWritten": totalObjectsWritten,
+			"stream.jobSuccess":          jobSuccess,
+			"duration":                   -1 * float64(startTime.Sub(time.Now()).Microseconds()) / float64(1000),
+			"method":                     "/geocoder.Geocoder/GeocodeBatch",
+			"status":                     respCode.String(),
+		})
+
+		if (err == nil) || (err == io.EOF) {
+			reqLogger.Info("bidi batch request successful")
+		} else {
+			reqLogger.WithFields(log.Fields{
+				"err": err,
+			}).Error("bidi batch job failed")
+		}
+	}()
+
+	// todo: not performance optimized at all...oh well, at least we shave off the network traffic
+	for {
+		// read stream in...
+		req, err := stream.Recv()
+
+		log.Info("bidi Alive %+v", req)
+
+		if err == io.EOF {
+			log.Errorf("bidi exit on EOF +%v", err)
+			return nil
+		}
+
+		if err != nil {
+			log.Errorf("bidi failed +%v", err)
+			return err
+		}
+
+		resp, err := s.Geocode(ctx, req)
+
+		// send responses back
+		if err := stream.Send(resp); err != nil {
+			log.Errorf("bidi failed on send +%v", err)
+			return err
+		}
+	}
 }
 
 // indexesReady - creates || checks the existence an index required for the application

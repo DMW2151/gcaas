@@ -21,8 +21,10 @@ func PointFromLocationString(s string) *pb.Point {
 		return &pb.Point{}
 	}
 
-	lat, xerr := strconv.ParseFloat(submatchall[0], 32)
-	lng, yerr := strconv.ParseFloat(submatchall[1], 32)
+	// as a rule, latitude preceedes longitude, THE N/S coordinate comes before the E/W coord
+	// NYC flipped these... :(
+	lat, xerr := strconv.ParseFloat(submatchall[1], 32)
+	lng, yerr := strconv.ParseFloat(submatchall[0], 32)
 
 	if (xerr != nil) || (yerr != nil) {
 		return &pb.Point{}

@@ -146,9 +146,12 @@ services:
     links:
       - pubsub
       - batch-cache
+    volumes:
+      - ./tmp/:/tmp
     environment:
       - DO_SPACES_KEY=${DO_SPACES_KEY}
       - DO_SPACES_SECRET=${DO_SPACES_SECRET}
+      - ENVIRONMENT=${ENVIRONMENT}
 
   # gcaas-batch is a service used for managing batch requests - handles batch events and batch datasets
   gcaas-worker:
@@ -159,14 +162,19 @@ services:
     command: /cmd/worker/worker \
         --pubsub-host pubsub \
         --pubsub-port 6379 \
-        --pubsub-db 0
+        --pubsub-db 0 \
+        --rpc-server-host gcaas-geocoder \
+        --rpc-server-port 50051
     depends_on:
       - pubsub
+    volumes:
+      - ./tmp/:/tmp
     links:
       - pubsub
     environment:
       - DO_SPACES_KEY=${DO_SPACES_KEY}
       - DO_SPACES_SECRET=${DO_SPACES_SECRET}
+      - ENVIRONMENT=${ENVIRONMENT}
 
 volumes: 
   redis_search_data:

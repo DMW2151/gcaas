@@ -41,18 +41,8 @@ message Point {
 // Address represents a composite address object with an Id, a resolved location, and component data
 message Address {
   string id = 1;
+  string composite_street_address = 2;
   Point location = 2;
-  string composite_street_address = 3;
-}
-
-// GeocodeRequest canonically represents a request to Geocoder.Geocode, contains one of `Point` or `AddressQuery` (string)
-message GeocodeRequest {
-  oneof query {
-    string address_query = 1;
-    Point point_query = 2;
-  }
-  uint32 max_results = 3;
-  Method method = 4;
 }
 
 // ScoredAddress attaches metadata to a base `Address` message, contains an additional normalized confidence score and
@@ -60,13 +50,28 @@ message GeocodeRequest {
 message ScoredAddress {
   Address address = 1;
   float normed_confidence = 2;
-  string composite_street_address = 3;
+}
+
+// Query
+message Query {
+  oneof query {
+      string address_query = 1;
+      Point point_query = 2;
+  }
+}
+
+// GeocodeRequest canonically represents a request to Geocoder.Geocode, contains one of `Point` or `AddressQuery` (string)
+message GeocodeRequest {
+  Query query = 1;
+  Method method = 2;
+  uint32 max_results = 3;
 }
 
 // GeocodeResponse canonically represents a response from Geocoder.Geocode, composed of a 
 message GeocodeResponse {
-  repeated ScoredAddress result = 1;
-  uint32 num_results = 2;
+  Query query = 1;
+  repeated ScoredAddress result = 2;
+  uint32 num_results = 3;
 }
 
 
@@ -83,10 +88,11 @@ enum BatchGeocodeStatus {
 }
 
 // CreateBatchRequest - 
+ // todo: This is a bit lazy - should do oneOf but can't nest repeated in there...
 message CreateBatchRequest {
   Method method = 1;
-  repeated string addresses = 2; // This is a bit lazy - should do oneOf but can't nest repeated in there...
-  repeated Point points = 3; // This is a bit lazy - should do oneOf but can't nest repeated in there...
+  repeated string addresses = 2;
+  repeated Point points = 3;
 }
 
 // StatusBatchRequest - 
@@ -104,16 +110,14 @@ message BatchStatusResponse {
 
 // ResolvedAddress - 
 message ResolvedAddress {
-  oneof query {
-      string address_query = 1;
-      Point point_query = 2;
-  }
-  ScoredAddress result = 3; 
+  Query query = 1;
+  Address result = 2; 
 }
 
-message BatchResponse {
-  repeated ResolvedAddress results = 1;
+message ResolvedBatch {
+  repeated ResolvedAddress batch = 1;
 }
+
 
 // MANAGEMENT SERVICE //
 

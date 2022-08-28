@@ -1,0 +1,1 @@
+{"batch":[{"query":{"Query":{"AddressQuery":"MASON ST"}},"result":{"id":"address:5195724","location":{"latitude":-74.09653,"longitude":40.599022},"composite_street_address":"176 MASON ST 5 NEW YORK 10304"}}]}

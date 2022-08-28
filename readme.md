@@ -32,8 +32,8 @@ curl -XPOST https://gc.dmw2151.com/geocode/ \
     {
       "address": {
         "location": {
-          "latitude": -73.909355,
-          "longitude": 40.676468
+          "latitude": 40.676468,
+          "longitude": -73.909355
         },
         "id": "address:50d17807-7dbd-41da-86c5-20c24f78ab36" 
       },
@@ -220,7 +220,7 @@ time_starttransfer:  0.080518s
         time_total:  0.080624s
 ```
 
-To simulate a higher load situation, I created a list of 1000 UNIQUE partial addresses samples from the New York City 1M datset to send to the FWD geocoding endpoint. I sent these over the wire with parallelism == 8 and found that the API did slow down a bit, but is still in an acceptable range.
+To simulate a higher load situation, I created a test list of 1000 partial addresses samples from the New York City 1M datset to send to the FWD geocoding endpoint. I sent these over the wire with parallelism == 8 and found that the API did slow down a bit, but is still in an acceptable range.
 
 ```bash
 time (cat nyc_address_sample.txt |\
@@ -230,8 +230,7 @@ time (cat nyc_address_sample.txt |\
 15.32s user 9.30s system 112% cpu 21.875 total
 ```
 
-However, I would strongly discourage this usage of the synchronous API in this way. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode dozens or hundreds of locations. For more comments on performance, you can refer to the video associated with this project.
-
+However, I would strongly discourage this usage of the synchronous API in this way. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode dozens or hundreds of locations. For more comments on performance, you can refer to the video associated with this project. 
 
 ## Running Locally
 
@@ -349,8 +348,8 @@ Content-Length: 208
       "address": {
         "id": "address:3043414",
         "location": {
-          "latitude": -73.932465,
-          "longitude": 40.67734
+          "latitude": 40.67734,
+          "longitude": -73.932465
         }
       },
       "normed_confidence": 1,
@@ -367,6 +366,24 @@ Content-Length: 208
 Now that we have a working service that's reading from the `Redis Search` instance, we should understand how its performing. The local configuration runs Redis Insights on `:8001`. You can visit the local insights instance on localhost [here](http://localhost:8001). You can connect to profile the search instance using the parameters shown below:
 
 ![insights](./misc/imgs/insights.png)
+
+
+#### Section 4 - Calling The Async API
+
+
+Restart with ... give abt. 30s to restore from AOF
+
+```
+ENVIRONMENT="LOCAL" docker-compose up
+```
+
+
+```bash
+ curl -XPOST localhost:2151/batch/ -d @$(pwd)/misc/benchmarks/fwd-batch-test.json
+{"id":"dd709eea-59fa-4fac-b7e8-886d5c44c97f","status":1,"update_time":{"seconds":1661654679,"nanos":792647238}}
+dustinwilson@Dustins-MBP hack-geocoder % curl -XGET localhost:2151/batch/dd709eea-59fa-4fac-b7e8-886d5c44c97f
+{"id":"dd709eea-59fa-4fac-b7e8-886d5c44c97f","status":4,"download_path":"dd709eea-59fa-4fac-b7e8-886d5c44c97f-results.json","update_time":{"seconds":1661654681,"nanos":400917319}}
+```
 
 
 ## Deployment
@@ -387,3 +404,7 @@ There are some weaknesses in this service right now, the following would improve
 * Open API Specificaiton - The API behavior is not well documented to the public. [Open API](https://swagger.io/specification/) is a specificattion that makes documenting services easier, but I haven't yet written this spec.
 
 * Datasets - The service is designed to handle *any* dataset with id, location, and address. There are quite a few national datasets available that could be interesting, e.g. [NAD](https://www.transportation.gov/gis/national-address-database/national-address-database-nad-disclaimer).
+
+* Protobuf Schema - 
+
+* Search Algo - 
