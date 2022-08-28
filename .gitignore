@@ -38,3 +38,4 @@ terraform.rc
 
 ## Data ##
 **/_data/**
+deploy-development/tmp/**

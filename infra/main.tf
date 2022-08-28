@@ -1,36 +1,24 @@
 terraform {
-
-  // use a local postgreSQL backend - exotic!
   backend "pg" {
+    // use a local postgreSQL backend for expediency
     conn_str = "postgres://dustinwilson:@localhost/terraform?sslmode=disable"
   }
-
   required_providers {
-
     digitalocean = {
       source  = "digitalocean/digitalocean"
       version = "~> 2.0"
     }
-
     docker = {
       source  = "kreuzwerker/docker"
       version = "2.20.2"
     }
-
   }
-
 }
 
 // configure the digitalocean provider - assumes `digitalocean_token` set externally e.g.
 // terraform apply -var="digitalocean_token=${DIGITALOCEAN_TOKEN}" -auto-approve 
 provider "digitalocean" {
-
-  // auth - general resource mgmt
-  token = var.digitalocean_token
-
-  // auth - spaces API
-  spaces_access_id  = var.access_id
-  spaces_secret_key = var.secret_key
+  token = var.digitalocean_token // auth - general resource mgmt
 }
 
 // configure the docker provider - uses the local machine to build the image and (regrettably)

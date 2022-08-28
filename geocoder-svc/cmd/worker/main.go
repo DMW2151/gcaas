@@ -115,22 +115,49 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 	// Send
 	log.Infof("all addresses %+v: ", cbr.Addresses)
 
-	for _, req := range cbr.Addresses {
+	// Forward
+	if len(cbr.Addresses) > 0 {
+		for _, req := range cbr.Addresses {
+			gcreq := &pb.GeocodeRequest{
+				Query: &pb.Query{
+					Query: &pb.Query_AddressQuery{
+						AddressQuery: req,
+					},
+				},
+				Method:     pb.Method_FWD_FUZZY,
+				MaxResults: 1,
+			}
+
+			//
+			if err := stream.Send(gcreq); err != nil {
+				log.Errorf("client.RouteChat: stream.Send(%v) failed: %v", gcreq, err)
+				return nil, err
+			}
+		}
+	}
+
+	// Reverse
+	for _, req := range cbr.Points {
 		gcreq := &pb.GeocodeRequest{
 			Query: &pb.Query{
-				Query: &pb.Query_AddressQuery{
-					AddressQuery: req,
+				Query: &pb.Query_PointQuery{
+					PointQuery: &pb.Point{
+						Latitude:  req.Latitude,
+						Longitude: req.Longitude,
+					},
 				},
 			},
-			Method:     pb.Method_FWD_FUZZY,
+			Method:     pb.Method_REV_NEAREST,
 			MaxResults: 1,
 		}
 
+		//
 		if err := stream.Send(gcreq); err != nil {
 			log.Errorf("client.RouteChat: stream.Send(%v) failed: %v", gcreq, err)
 			return nil, err
 		}
 	}
+
 	stream.CloseSend()
 	<-waitc
 

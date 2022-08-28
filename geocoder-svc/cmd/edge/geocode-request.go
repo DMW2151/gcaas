@@ -13,7 +13,7 @@ import (
 type batchRequest struct {
 	Method         string     `json:"method"`
 	QueryAddresses []string   `json:"query_addr,omitempty"`
-	QueryPoints    []pb.Point `json:"query_lng,omitempty"`
+	QueryPoints    []pb.Point `json:"query_pts,omitempty"`
 }
 
 // isValid -

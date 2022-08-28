@@ -14,7 +14,7 @@ var isNumeric = regexp.MustCompile(`[-]?\d[\d,]*[\.]?[\d{2}]*`)
 
 // PointFromLocationString - utility function for handling redis SEARCH's representation
 // of coordinates as a single string
-func PointFromLocationString(s string) *pb.Point {
+func PointFromLocationString(s string, swap bool) *pb.Point {
 
 	submatchall := isNumeric.FindAllString(s, -1)
 	if len(submatchall) != 2 {
@@ -23,8 +23,16 @@ func PointFromLocationString(s string) *pb.Point {
 
 	// as a rule, latitude preceedes longitude, THE N/S coordinate comes before the E/W coord
 	// NYC flipped these... :(
-	lat, xerr := strconv.ParseFloat(submatchall[1], 32)
-	lng, yerr := strconv.ParseFloat(submatchall[0], 32)
+	var lat, lng float64
+	var xerr, yerr error
+
+	if swap {
+		lng, yerr = strconv.ParseFloat(submatchall[0], 32)
+		lat, xerr = strconv.ParseFloat(submatchall[1], 32)
+	} else {
+		lat, xerr = strconv.ParseFloat(submatchall[0], 32)
+		lng, yerr = strconv.ParseFloat(submatchall[1], 32)
+	}
 
 	if (xerr != nil) || (yerr != nil) {
 		return &pb.Point{}

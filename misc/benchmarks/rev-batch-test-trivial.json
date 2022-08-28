@@ -1,0 +1,6 @@
+{
+   "method": "REV_NEAREST",
+   "query_pts": [
+      {"latitude": 40.67, "longitude": -73.98}
+   ]
+}

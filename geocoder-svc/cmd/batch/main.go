@@ -3,11 +3,9 @@ package main
 import (
 
 	// standard lib
-
 	"context"
 	"flag"
 	"fmt"
-
 	"time"
 
 	// internal
@@ -22,7 +20,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-
 	"github.com/aws/aws-sdk-go/service/s3"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -43,7 +40,7 @@ var (
 	pubsubDB   = flag.Int("pubsub-db", 0, "...")
 )
 
-// GeocoderServer - server API for Geocoder service
+// BatchServer -
 type BatchServer struct {
 	pb.UnimplementedBatchServer
 	cacheClient  *redis.Client
@@ -73,7 +70,7 @@ func (s *BatchServer) Listen(ctx context.Context, topic string) {
 			log.WithFields(log.Fields{
 				"err": err,
 				"op":  "batchserver.listener",
-			}).Panicf("failed to read message from pubsub: %s", s)
+			}).Panic("failed to read message from pubsub")
 		}
 
 		_, err = s.cacheClient.Do(
@@ -106,13 +103,13 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 	var startTime = time.Now()               // call on entry as proxy for use w. cobbled-together request logger
 	var respCode = codes.OK                  // status code; returned as part of pb.IOResponse
 	var err error                            // error; returned as part of pb.IOResponse
-	var batchRequestId = uuid.New().String() // create a new uuid for the request
+	var batchRequestID = uuid.New().String() // create a new uuid for the request
 
 	reqLogger := log.WithFields(log.Fields{
 		"request.size":   len(req.Points) + len(req.Addresses),
 		"request.method": req.Method,
 		"method":         "/geocoder.Batch/CreateBatch",
-		"batch.id":       batchRequestId,
+		"batch.id":       batchRequestID,
 	})
 
 	defer func() {
@@ -133,12 +130,12 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 	// first thing we do is mark accepted and tell the client the request was
 	// accepted unless the cache rejected it upfront...
 	_, err = s.cacheClient.Do(
-		ctx, "HSET", batchRequestId, "status", pb.BatchGeocodeStatus_ACCEPTED.String(), "update_time", time.Now(),
+		ctx, "HSET", batchRequestID, "status", pb.BatchGeocodeStatus_ACCEPTED.String(), "update_time", time.Now(),
 	).Result()
 	if err != nil {
 		respCode = codes.Unavailable // transient failure - batch status cache unavailable
 		return &pb.BatchStatusResponse{
-			Id:         batchRequestId,
+			Id:         batchRequestID,
 			Status:     pb.BatchGeocodeStatus_REJECTED, // Rejected
 			UpdateTime: timestamppb.New(time.Now()),
 		}, status.Error(respCode, err.Error())
@@ -156,11 +153,11 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 		defer cx()
 
 		storageLogger := log.WithFields(log.Fields{
-			"batch.id": batchRequestId,
+			"batch.id": batchRequestID,
 			"op":       "batchserver.storageWriter",
 		})
 
-		err := srv.PersistBatchToStorage(s.spacesClient, req, fmt.Sprintf("%s.json", batchRequestId))
+		err := srv.PersistBatchToStorage(s.spacesClient, req, fmt.Sprintf("%s.json", batchRequestID))
 
 		// saving to disk failed - update the status;
 		if err != nil {
@@ -169,7 +166,7 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 				"status": pb.BatchGeocodeStatus_FAILED.String(),
 			}).Error("failed to save batch to storage")
 			_, _ = s.cacheClient.Do(context.Background(),
-				"HSET", batchRequestId,
+				"HSET", batchRequestID,
 				"status", pb.BatchGeocodeStatus_FAILED.String(),
 				"update_time", time.Now(),
 			).Result()
@@ -183,14 +180,14 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 
 		// Publish to Queue - the file is ready for workers to process
 		pubsubPipe := s.pubsubClient.TxPipeline()
-		pubsubPipe.Publish(writerCtx, "batch.creates", batchRequestId)
+		pubsubPipe.Publish(writerCtx, "batch.creates", batchRequestID)
 		_, err = pubsubPipe.Exec(writerCtx)
 		if err != nil {
 			storageLogger.WithFields(log.Fields{
 				"err": err,
 			}).Error("failed to publish event on batch.creates")
 			_, _ = s.cacheClient.Do(writerCtx,
-				"HSET", batchRequestId,
+				"HSET", batchRequestID,
 				"status", pb.BatchGeocodeStatus_FAILED.String(),
 				"update_time", time.Now(),
 			).Result()
@@ -200,14 +197,14 @@ func (s *BatchServer) CreateBatch(ctx context.Context, req *pb.CreateBatchReques
 	}()
 
 	return &pb.BatchStatusResponse{
-		Id:         batchRequestId,
+		Id:         batchRequestID,
 		Status:     pb.BatchGeocodeStatus_ACCEPTED,
 		UpdateTime: timestamppb.New(time.Now()),
 	}, nil
 
 }
 
-// StatusBatch - ...
+// GetBatchStatus - 
 func (s *BatchServer) GetBatchStatus(ctx context.Context, req *pb.BatchStatusRequest) (*pb.BatchStatusResponse, error) {
 
 	var startTime = time.Now() // call on entry as proxy for use w. cobbled-together request logger

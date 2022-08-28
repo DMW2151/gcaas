@@ -100,7 +100,8 @@ func fileToAddressProtoArray(fp string) ([]*pb.Address, error) {
 				}).Warn("unexpected data struct; skipping")
 			}
 
-			addrLocation := srv.PointFromLocationString(content[1])
+			// NOTE: DANGEROUS FLAG...
+			addrLocation := srv.PointFromLocationString(content[1], true)
 
 			// Compose result and apppend to addresses to send
 			addresses[addrIdx-1] = &pb.Address{

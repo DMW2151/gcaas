@@ -12,24 +12,21 @@ services:
     volumes: 
       - redis_search_data:/data/
 
-  # simple `redis:alpine3.16` -> used as a secondary redis instance for pubsub; could use the same instance,
-  # but want to keep load off our main redis (see above)
+  # simple `redis:alpine3.16` -> used as a secondary redis instance for pubsub
   pubsub:
     image: redis:alpine3.16
     expose: 
       - 6379
     restart: unless-stopped
 
-  # simple `redis:alpine3.16` -> used as a secondary redis instance for caching; could use the same instance,
-  # but want to keep load off our main redis (see above)
+  # simple `redis:alpine3.16` -> used as a secondary redis instance for caching web API
   edge-cache:
     image: redis:alpine3.16
     expose: 
       - 6379
     restart: unless-stopped
 
-  # simple `redis:alpine3.16` -> used as a secondary redis instance for caching statuses; could use the 
-  # same instance, but want to keep load off our main redis (see above)
+  # simple `redis:alpine3.16` -> used as a secondary redis instance for persisting batch statuses
   batch-cache:
     image: redis:alpine3.16
     expose: 
@@ -38,8 +35,7 @@ services:
     volumes: 
       - redis_batch_cache_data:/data/
   
-  # redis insight uses `redislabs/redisinsight:latest` and serves on 8001; used for viewing performance metrics 
-  # for redis instance -> see image dockerhub: https://hub.docker.com/r/redislabs/redisinsight
+  # `redislabs/redisinsight:latest` -> used for viewing performance metrics
   insight:
     image: redislabs/redisinsight:latest
     ports: 
@@ -50,7 +46,7 @@ services:
       - edge-cache
       - batch-cache
 
-  # gcaas edge is the HTTP service that is exposed to the user
+  # gcaas-edge is the HTTP service that is exposed to the user
   gcaas-edge:
     build: 
       context: ./../
@@ -77,8 +73,8 @@ services:
       - edge-cache
       - gcaas-geocoder
 
-  # gcaas geocoder is the grpc service that sits between the edge service and the redismod instance
-  # allows for single
+  # gcaas-geocoder is the grpc service that sits between the edge service and the redismod instance, 
+  # allows for single and batch queries against redis search
   gcaas-geocoder:
     build: 
       context: ./../
@@ -99,8 +95,7 @@ services:
     links:
       - search
 
-  # gcaas-mgmt is an admin only service used for managing permanent inserts of the data to
-  # the full text search instance
+  # gcaas-mgmt is an admin only service used for managing data in the search instance
   gcaas-mgmt:
     build: 
       context: ./../
@@ -121,7 +116,8 @@ services:
     links:
       - search
     
-  # gcaas-batch is a service used for managing batch requests - handles batch events and batch datasets
+  # gcaas-batch is a service used for managing batch requests - handles batch events and datasets
+  # uploads
   gcaas-batch:
     build: 
       context: ./../
@@ -153,7 +149,7 @@ services:
       - DO_SPACES_SECRET=${DO_SPACES_SECRET}
       - ENVIRONMENT=${ENVIRONMENT}
 
-  # gcaas-batch is a service used for managing batch requests - handles batch events and batch datasets
+  # gcaas-worker is a service used for picking up batch jobs and streaming them to the geocoder
   gcaas-worker:
     build: 
       context: ./../

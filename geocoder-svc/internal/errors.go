@@ -7,7 +7,6 @@ import (
 var (
 
 	// ErrFailedTypeConversion - catchall error for failures related to type conversion of redis' []interface{}
-	// responses -> prefer throwing `ErrFailedTypeConversion` and returning nil to panic & exit...
 	ErrFailedTypeConversion = errors.New("failed interface type conversion")
 
 	// ErrMalformedRedisQuery is returned when the request body will yield a bad response from the db server

@@ -134,8 +134,10 @@ func (s *ManagementServer) InsertorReplaceAddressData(stream pb.Management_Inser
 		// while below not full; add cmd to transaction pipeline buffer
 		if numQueuedTransactions < serverMaxQueuedTransactions {
 			numQueuedTransactions++
+
+			// note: Redis uses Long, Lat...
 			pipe.Do(ctx, "HSET", fmt.Sprintf("address:%s", address.Id),
-				"location", fmt.Sprintf("%.8f, %.8f", address.Location.Latitude, address.Location.Longitude),
+				"location", fmt.Sprintf("%.6f, %.6f", address.Location.Latitude, address.Location.Longitude),
 				"composite_street_address", address.CompositeStreetAddress,
 			)
 		}

@@ -8,8 +8,15 @@
 mkdir -p ./_data/
 
 wget 'https://data.cityofnewyork.us/api/views/emzr-v3pi/rows.csv?accessType=DOWNLOAD' \
-	-O ./_data/nyc_addr.csv
+	-O ./_data/original_nyc.csv
 
-cat ./_data/nyc_addr.csv |\
+cat ./_data/original_nyc.csv |\
 	cut -d',' -f1,2,4,9,10,23 |\
-	awk -F ',' '{ print $2 "," $1 "," $3 " " $6 " " $4 " NEW YORK " $5}' > ./_data/prepared_nyc.csv
+	awk 'BEGIN  { FS = OFS = ","; } 
+			$(4) == 1 { $(4) = "MANHATTAN"; } 
+			$(4) == 2 { $(4) = "BRONX"; } 
+			$(4) == 3 { $(4) = "BROOKLYN"; }  
+			$(4) == 4 { $(4) = "QUEENS"; }  
+			$(4) == 5 { $(4) = "STATEN ISLAND"; }  
+		{ print; }'|\
+	awk -F ',' '{ print $2 "," $1 "," $3 " " $6 " " $4 " NEW YORK " $5}' | tr -s ' ' > ./_data/prepared_nyc.csv

@@ -43,7 +43,7 @@ const (
 
 	// serverReverseToleranceMeters - maximum error for reverse geocoding, only results within `serverReverseToleranceMeters`
 	// meters of the query point are considred
-	serverReverseToleranceMeters = 1024
+	serverReverseToleranceMeters = 64
 
 	// serverNFieldsForwardResponse - number of expected fields in forward response - assumes fixed across multiple methods
 	serverNFieldsForwardResponse = 3
@@ -117,8 +117,9 @@ func handleServerResponse(res interface{}, maxResults int64) ([]*pb.ScoredAddres
 		addressDetails, _ := srv.SafeCast[[]interface{}](resultSet[resultStartPosition+2])
 
 		locationStr, _ := srv.SafeCast[string](addressDetails[1])
-		pt := srv.PointFromLocationString(locationStr)
 
+		// TODO: WARN: NOTE: THIS IS A VERY SCARY FLAG
+		pt := srv.PointFromLocationString(locationStr, false)
 		fullStreetAddress, _ := srv.SafeCast[string](addressDetails[3])
 
 		// append all results to addressresults...
@@ -170,7 +171,7 @@ func (s *GeocoderServer) Reverse(ctx context.Context, req *pb.GeocodeRequest) ([
 
 	res, err := s.client.Do(
 		ctx, "FT.SEARCH", "addr-idx",
-		fmt.Sprintf("@location:[%.8f %.8f %d m]", ptQuery.Longitude, ptQuery.Latitude, serverReverseToleranceMeters),
+		fmt.Sprintf("@location:[%.8f %.8f %d m]", ptQuery.Latitude, ptQuery.Longitude, serverReverseToleranceMeters),
 		"WITHSCORES", "LIMIT", "0", req.MaxResults,
 	).Result()
 

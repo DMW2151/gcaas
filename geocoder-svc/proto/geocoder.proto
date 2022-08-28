@@ -1,10 +1,13 @@
 // NOTE TO DEV:
-// GENERATE WITH: protoc --go_out=. ./proto/geocoder.proto --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative 
+// CAN GENERATE WITH: protoc --go_out=. ./proto/geocoder.proto --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative 
 syntax = "proto3";
 
 option go_package = "geocoder/proto/geocoder.proto";
 package geocoder;
 import "google/protobuf/timestamp.proto";
+
+
+// SERVICES //
 
 // Geocoder provides one-shot geocoding, either forward (address -> point) or reverse (point -> address)
 service Geocoder {
@@ -12,9 +15,9 @@ service Geocoder {
   rpc GeocodeBatch( stream GeocodeRequest) returns (stream GeocodeResponse) {}  
 }
 
-// Batch provides an interface to handling
+// Batch manages the statues of batch requests, these requests are processed async
 service Batch {
-  rpc CreateBatch(CreateBatchRequest) returns (BatchStatusResponse) {}  // bleh! verbs!
+  rpc CreateBatch(CreateBatchRequest) returns (BatchStatusResponse) {} 
   rpc GetBatchStatus(BatchStatusRequest) returns (BatchStatusResponse) {}  
 }
 
@@ -23,7 +26,8 @@ service Management {
   rpc InsertorReplaceAddressData(stream Address) returns (IOResponse) {} //
 }
 
-// GEOCODE SERVICE //
+
+// MESSAGES - PRIMITIVE //
 
 // Method defines the geocoding method, either forward (address -> point) or reverse (point -> address)
 enum Method {
@@ -32,27 +36,26 @@ enum Method {
 }
 
 // Point represents latitude-longitude pairs 
-// Latitudes in the range +/- 90 degrees and longitude in the range +/- 180 degrees.
 message Point {
   float latitude = 1;
   float longitude = 2;
 }
 
-// Address represents a composite address object with an Id, a resolved location, and component data
+// Address represents a composite address object with both a location and a full street address
 message Address {
   string id = 1;
   string composite_street_address = 2;
-  Point location = 2;
+  Point location = 3;
 }
 
-// ScoredAddress attaches metadata to a base `Address` message, contains an additional normalized confidence score and
-// the `full_street_address` as identified by the server
+// ScoredAddress attaches a confidence score to an `Address` in order to compare the viablity from a set 
+// of multiple responses
 message ScoredAddress {
   Address address = 1;
   float normed_confidence = 2;
 }
 
-// Query
+// Query -
 message Query {
   oneof query {
       string address_query = 1;
@@ -60,14 +63,16 @@ message Query {
   }
 }
 
-// GeocodeRequest canonically represents a request to Geocoder.Geocode, contains one of `Point` or `AddressQuery` (string)
+// MESSAGES - GEOCODER //
+
+// GeocodeRequest represents a request to Geocoder.Geocode
 message GeocodeRequest {
   Query query = 1;
   Method method = 2;
   uint32 max_results = 3;
 }
 
-// GeocodeResponse canonically represents a response from Geocoder.Geocode, composed of a 
+// GeocodeResponse represents a response from Geocoder.Geocode
 message GeocodeResponse {
   Query query = 1;
   repeated ScoredAddress result = 2;
@@ -75,7 +80,7 @@ message GeocodeResponse {
 }
 
 
-// BATCH SERVICE //
+// MESSAGES - BATCH SERVICE //
 
 // BatchGeocodeStatus - 
 enum BatchGeocodeStatus {
@@ -87,8 +92,7 @@ enum BatchGeocodeStatus {
   FAILED = 5;
 }
 
-// CreateBatchRequest - 
- // todo: This is a bit lazy - should do oneOf but can't nest repeated in there...
+// CreateBatchRequest - represents a request to Batch.CreateBatch
 message CreateBatchRequest {
   Method method = 1;
   repeated string addresses = 2;
@@ -103,7 +107,7 @@ message BatchStatusRequest {
 // BatchStatusResponse - 
 message BatchStatusResponse {
   string id = 1; // uuid
-  BatchGeocodeStatus status = 2; //
+  BatchGeocodeStatus status = 2;
   string download_path = 3;
   google.protobuf.Timestamp update_time = 4;
 }
@@ -114,14 +118,15 @@ message ResolvedAddress {
   Address result = 2; 
 }
 
+// ResolvedBatch - 
 message ResolvedBatch {
   repeated ResolvedAddress batch = 1;
 }
 
 
-// MANAGEMENT SERVICE //
+// MESSAGES - MANAGEMENT SERVICE //
 
-// IOResponse represents a 
+// IOResponse is a status indicator for management service jobs - not used often
 message IOResponse {
   bool success = 1;
   int32 total_objects_written = 2;

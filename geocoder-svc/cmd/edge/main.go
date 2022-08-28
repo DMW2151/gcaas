@@ -53,7 +53,7 @@ const (
 	edgeServiceRequestTimeout = 1 * time.Second
 
 	// edgeServiceCacheDurationSeconds - TTL (in seconds!) to set on all successful responses from `/geocoder.Geocoder/Geocode`
-	edgeServiceCacheDurationSeconds = 15
+	edgeServiceCacheDurationSeconds = 90
 )
 
 var requestRegexp = regexp.MustCompile(`(\w{3,})`)
@@ -305,8 +305,8 @@ func (gh *GeocoderServerHandler) Query(w http.ResponseWriter, r *http.Request) {
 			Query: &pb.Query{
 				Query: &pb.Query_PointQuery{
 					PointQuery: &pb.Point{
-						Latitude:  req.QueryLongitude,
-						Longitude: req.QueryLatitude,
+						Latitude:  req.QueryLatitude,
+						Longitude: req.QueryLongitude,
 					},
 				},
 			},
