@@ -1,12 +1,6 @@
 # Geocoding with Redis
 
-A geocoder is a service for matching addresses to geographic locations and the entities containing those addresses. Geocoders use both geospatial queries and full text search to resolve incomplete addresses to addresses and locations from a validated.For example, if a user wants to resolve the value `TIMES SQ MANHATTAN` to a proper address, a geocoding service may use a full text search algorithm to propose the following:
-
-- 5 TIMES SQUARE MANHATTAN 10036  , (40.755985, -73.98723)
-- 10 TIMES SQUARE MANHATTAN 10018 , (40.754963, -73.98687)
-- 11 TIMES SQUARE MANHATTAN 10036 , (40.756763, -73.98984)
-
-This application uses Redis Search and PubSub to provide both a synchronous and asynchronous geocoding services.
+A geocoder is a service for matching addresses to geographic locations and the entities containing those addresses. Geocoders use both geospatial queries and full text search to resolve incomplete addresses to addresses and locations from a validated. This repo builds a geocoder using Redis Search and PubSub to provide both a synchronous and asynchronous geocoding services.
 
 ## Introduction Video
 
