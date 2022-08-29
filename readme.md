@@ -232,7 +232,7 @@ time_starttransfer:  0.080518s
         time_total:  0.080624s
 ```
 
-I replicated this test using both cached requests (avg. \~70ms) and the health endpoint (avg. \~65ms). In general, the geocoding is ~easy~ for redis, and while the `Geocoder Web Cache` can help a bit, the "pain" in the system isn't so much load on the server (at this level of load) as it is the latency from a local machine to the geocoding server.
+I replicated this test using both cached requests (avg. \~70ms) and the health endpoint (avg. \~65ms). In general, the geocoding is *easy* for redis, and while the `Geocoder Web Cache` can help a bit, the "pain" in the system isn't so much load on the server (at this level of load) as it is the latency from a local machine to the geocoding server.
 
 To simulate a higher load situation, I created a list of sample addresses to request for forward geocoding. I sent these over the wire with eight parallel processes. In this test I found that the API was able to handle this volume OK, but there's still some work to be done to improve performance here, I have not examined the traces to determine where this latency is, though Redis insights could help with that.
 

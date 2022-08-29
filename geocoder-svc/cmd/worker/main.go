@@ -102,7 +102,7 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 				}).Error("geocoder.GeocoderBatch failed on stream recv")
 			}
 
-			// note: avoid nil ptr deref here in the protocode by 
+			// note: avoid nil ptr deref here in the protocode by
 			if in.NumResults > 0 {
 				resolvedAddresses[i] = &pb.ResolvedAddress{
 					Result: in.Result[0].Address,
