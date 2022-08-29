@@ -272,7 +272,7 @@ func (s *GeocoderServer) GeocodeBatch(stream pb.Geocoder_GeocodeBatchServer) err
 		// read stream in...
 		req, err := stream.Recv()
 
-		log.Info("bidi Alive %+v", req)
+		log.Debug("bidi Alive %+v", req)
 
 		if err == io.EOF {
 			log.Errorf("bidi exit on EOF +%v", err)

@@ -72,7 +72,7 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 
 	stream, err := w.geocoderClient.GeocodeBatch(ctx)
 	if err != nil {
-		log.Errorf("client.GeocoderBatch failed: %v", err)
+		log.Errorf("geocoder.GeocoderBatch failed: %v", err)
 	}
 
 	waitc := make(chan struct{})
@@ -88,15 +88,9 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 				return
 			}
 			if err != nil {
-				log.Errorf("client.GeocoderBatch failed: %v", err)
+				log.Errorf("geocoder.GeocoderBatch failed: %v", err)
 			}
 
-			log.Printf("Got Response message! (%s)", in)
-
-			// todo: locks?
-
-			// WARN: WARN: WARN: this is really confusing - ended up regenerating protos in a way
-			// that's neither clever nor clear...have to compose an Address result here - yuck
 			if in.NumResults > 0 {
 				resolvedAddresses[i] = &pb.ResolvedAddress{
 					Result: in.Result[0].Address,
@@ -114,6 +108,7 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 
 	// Send
 	log.Infof("all addresses %+v: ", cbr.Addresses)
+	log.Infof("all addresses %+v: ", cbr.Points)
 
 	// Forward
 	if len(cbr.Addresses) > 0 {
@@ -130,31 +125,33 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 
 			//
 			if err := stream.Send(gcreq); err != nil {
-				log.Errorf("client.RouteChat: stream.Send(%v) failed: %v", gcreq, err)
+				log.Error("/geocoder.Geocoder/GeocodeBatch: stream.Send failed")
 				return nil, err
 			}
 		}
-	}
+	} 
 
-	// Reverse
-	for _, req := range cbr.Points {
-		gcreq := &pb.GeocodeRequest{
-			Query: &pb.Query{
-				Query: &pb.Query_PointQuery{
-					PointQuery: &pb.Point{
-						Latitude:  req.Latitude,
-						Longitude: req.Longitude,
+	
+	if len(cbr.Points) > 0 {
+		for _, req := range cbr.Points {
+			gcreq := &pb.GeocodeRequest{
+				Query: &pb.Query{
+					Query: &pb.Query_PointQuery{
+						PointQuery: &pb.Point{
+							Latitude:  req.Latitude,
+							Longitude: req.Longitude,
+						},
 					},
 				},
-			},
-			Method:     pb.Method_REV_NEAREST,
-			MaxResults: 1,
-		}
+				Method:     pb.Method_REV_NEAREST,
+				MaxResults: 1,
+			}
 
-		//
-		if err := stream.Send(gcreq); err != nil {
-			log.Errorf("client.RouteChat: stream.Send(%v) failed: %v", gcreq, err)
-			return nil, err
+			//
+			if err := stream.Send(gcreq); err != nil {
+				log.Error("/geocoder.Geocoder/GeocodeBatch: stream.Send failed")
+				return nil, err
+			}
 		}
 	}
 

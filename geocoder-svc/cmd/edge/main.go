@@ -112,10 +112,11 @@ func (gh *GeocoderServerHandler) CreateBatch(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// put points into an array
+	// put points into an array 
+	// warn - careful here, you released a bug when you tried to iter over the ptr...
 	pts := make([]*pb.Point, len(req.QueryPoints))
-	for i, p := range req.QueryPoints {
-		pts[i] = &p
+	for i, _ := range req.QueryPoints {
+		pts[i] = &req.QueryPoints[i]
 	}
 
 	// Method_value str -> int => this is very defensive; should be handled in
