@@ -215,7 +215,7 @@ The asynchronous geocoding API makes requests through `Geocoder Edge` and uses `
 
 ### Performance Benchmarks
 
-This is a new application, so there are no prior benchmarks without Redis. I ran the following quick tests against the synchronous endpoint, `https://gc.dmw2151.com/geocode/` to get a sense for performance. With low load on the system, the request resolves almost immediately (\~80ms), most of which is time in transit.
+This is a new application, so there are no prior benchmarks without Redis. I ran the following quick tests against the synchronous endpoint, `https://gc.dmw2151.com/geocode/` to get a sense for performance. With low load on the system, the request resolves almost immediately (\~80ms), most of which is time in transit. 
 
 ```bash
 # see: https://stackoverflow.com/a/22625150 for timing format
@@ -232,7 +232,9 @@ time_starttransfer:  0.080518s
         time_total:  0.080624s
 ```
 
-To simulate a higher load situation, I created a test list of sample addresses to request for forward geocoding. I sent these over the wire with eight parallel processes, and found that the API was able to handle this volume OK, but there's still some work to be done to improve performance here.
+I replicated this test using both cached requests (avg. \~70ms) and the health endpoint (avg. \~65ms). In general, the geocoding is ~easy~ for redis, and while the `Geocoder Web Cache` can help a bit, the "pain" in the system isn't so much load on the server (at this level of load) as it is the latency from a local machine to the geocoding server.
+
+To simulate a higher load situation, I created a list of sample addresses to request for forward geocoding. I sent these over the wire with eight parallel processes. In this test I found that the API was able to handle this volume OK, but there's still some work to be done to improve performance here, I have not examined the traces to determine where this latency is, though Redis insights could help with that.
 
 ```bash
 time (cat nyc_address_sample.txt |\
@@ -242,7 +244,41 @@ time (cat nyc_address_sample.txt |\
 15.32s user 9.30s system 112% cpu 21.875 total
 ```
 
-However, I would strongly discourage this usage of the synchronous API in this way. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode dozens or hundreds of locations.
+Despite the last test, I would strongly discourage this usage of the synchronous API in this way. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode dozens or hundreds of locations. As further indication of this fact, I created a larger test file - containing 2,500 addresses and sent it to the batch server. Using the batch endpoint, I was able to geocode \~250 search requests/sec, a nice improvement over the sync API.
+
+
+```bash
+# init reqquest at 1661735377.681408477
+curl -s -XPOST https://gc.dmw2151.com/batch/ -d @$(pwd)/demo/benchmarks/fwd-batch-test-large.json
+
+{
+  "id": "9ff73be0-7022-437a-822e-8a7cdb6b8ea0",
+  "status": 1,
+  "update_time" :{
+    "seconds":1661735377,
+    "nanos":681408477
+  }
+}
+
+# request shows status (4) `finished` 10 seconds later -> 1661735387.92403820
+curl -s -XGET https://gc.dmw2151.com/batch/9ff73be0-7022-437a-822e-8a7cdb6b8ea0
+
+{
+  "id": "9ff73be0-7022-437a-822e-8a7cdb6b8ea0",
+  "status": 4,
+  "download_path": "https://gcaas-data-storage.nyc3....",
+  "update_time": {
+    "seconds": 1661735387,
+    "nanos": 92403820
+  }
+}
+```
+
+
+| Figure 2.0 Batch Endpoint Profiling |
+|-------------------------------------|
+| ![arch](./misc/docs/insights_batch_prof.png)|
+
 
 ## Running Locally
 

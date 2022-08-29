@@ -63,34 +63,46 @@ func (w *Worker) updateBatchJobStatus(ctx context.Context, id string, bs pb.Batc
 	}
 }
 
+// submitStreamingGeocodeBatch
 func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.CreateBatchRequest) (*pb.ResolvedBatch, error) {
 
 	var resolvedAddresses = make(
 		[]*pb.ResolvedAddress, (len(cbr.Addresses) + len(cbr.Points)),
 	)
+
 	var resolvedBatch = &pb.ResolvedBatch{}
 
+	// The worker (acting as a client) sends requests to geocode batch; init conn
 	stream, err := w.geocoderClient.GeocodeBatch(ctx)
 	if err != nil {
-		log.Errorf("geocoder.GeocoderBatch failed: %v", err)
+		log.WithFields(log.Fields{
+			"err": err,
+			"op":  "worker.sender",
+		}).Error("geocoder.GeocoderBatch failed on stream init")
 	}
 
 	waitc := make(chan struct{})
 
-	// listener for responses..
+	// The worker inits the listener process before sending a single msg
 	go func() {
 
-		var i int
+		var numResponsesRecv int
+
 		for {
+
 			in, err := stream.Recv()
 			if err == io.EOF {
 				close(waitc)
 				return
 			}
 			if err != nil {
-				log.Errorf("geocoder.GeocoderBatch failed: %v", err)
+				log.WithFields(log.Fields{
+					"err": err,
+					"op":  "worker.recv",
+				}).Error("geocoder.GeocoderBatch failed on stream recv")
 			}
 
+			// note: avoid nil ptr deref here in the protocode by 
 			if in.NumResults > 0 {
 				resolvedAddresses[i] = &pb.ResolvedAddress{
 					Result: in.Result[0].Address,
@@ -102,13 +114,9 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 				}
 			}
 
-			i++
+			numResponsesRecv++
 		}
 	}()
-
-	// Send
-	log.Infof("all addresses %+v: ", cbr.Addresses)
-	log.Infof("all addresses %+v: ", cbr.Points)
 
 	// Forward
 	if len(cbr.Addresses) > 0 {
@@ -129,9 +137,8 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 				return nil, err
 			}
 		}
-	} 
+	}
 
-	
 	if len(cbr.Points) > 0 {
 		for _, req := range cbr.Points {
 			gcreq := &pb.GeocodeRequest{
