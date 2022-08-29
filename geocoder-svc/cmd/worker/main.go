@@ -174,6 +174,7 @@ func (w *Worker) submitStreamingGeocodeBatch(ctx context.Context, cbr *pb.Create
 // with the other
 func (w *Worker) Listen(ctx context.Context) {
 	sub := w.pubsubClient.Subscribe(ctx, w.listenTopic)
+	
 	defer func() {
 		log.Infof("exit from pub/sub channel: %s", w.listenTopic)
 		sub.Unsubscribe(w.pubsubClient.Context(), w.listenTopic)

@@ -1,4 +1,4 @@
-
+{
   "app_name": "Geocodidng with Redis Search",
   "description": "Uses Redis Search to match addresses to geographic locations",
   "hidden": false,

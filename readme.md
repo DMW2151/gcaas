@@ -244,16 +244,16 @@ time (cat ./misc/benchmarks/generate-mock-load.txt |\
 15.32s user 9.30s system 112% cpu 21.875 total
 ```
 
-Despite the last test, I would strongly discourage this usage of the synchronous API in this way. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode dozens or hundreds of locations. As further indication of this fact, I created a larger test file - containing 2,500 addresses and sent it to the batch server. Using the batch endpoint, I was able to geocode \~250 search requests/sec, a nice improvement over the sync API.
+Despite the last test, I would strongly discourage this usage of the synchronous API. It is meant for one off requests, the asynchronous service delivers a better product experience for users who want to geocode hundreds or thoudsands of locations. As further indication of this fact, I created a larger test file - containing 2,500 addresses and sent it to the batch server. Using the batch endpoint, I was able to geocode \~250 search requests/sec, a nice improvement over the sync API.
 
 
 ```bash
-# init reqquest at 1661735377.681408477
-curl -s -XPOST https://gc.dmw2151.com/batch/ -d @$(pwd)/demo/benchmarks/fwd-batch-test-large.json
+# init request at 1661735377.681408477
+curl -s -XPOST https://gc.dmw2151.com/batch/ -d @$(pwd)/misc/benchmarks/fwd-batch-test-large.json
 
 {
   "id": "9ff73be0-7022-437a-822e-8a7cdb6b8ea0",
-  "status": 1,
+  "status": "ACCEPTED",
   "update_time" :{
     "seconds":1661735377,
     "nanos":681408477
@@ -265,7 +265,7 @@ curl -s -XGET https://gc.dmw2151.com/batch/9ff73be0-7022-437a-822e-8a7cdb6b8ea0
 
 {
   "id": "9ff73be0-7022-437a-822e-8a7cdb6b8ea0",
-  "status": 4,
+  "status": "SUCCESS",
   "download_path": "https://gcaas-data-storage.nyc3....",
   "update_time": {
     "seconds": 1661735387,
@@ -299,21 +299,6 @@ These instructions were tested on a machine with the following software. Any mod
 Local installation does not involve deploying any paid resources to a cloud or accessing any resources from `gc.dmw2151.com`. However, it does require building and pulling all containers used in the project. I've built very lightweight service images, but machines with <4GB of RAM to allocate to Docker may struggle a bit on build. Change directories to `./deploy-development` and run `ENVIRONMENT="LOCAL" docker-compose up`. On the first run, this will build all containers associated with the project (*Estimated Time: 2-4 minutes*).
 
 ```bash
-# Result of `docker stats`
-CONTAINER ID   NAME                                  CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O     PIDS                                                                                                    
-0671cdfe9e79   deploy-development_insight_1          0.04%     84.71MiB / 3.842GiB   2.15%     8.59kB / 3.69kB   0B / 9.4MB    9                                    
-e5d70506fe54   deploy-development_gcaas-edge_1       0.00%     16.69MiB / 3.842GiB   0.42%     7.84kB / 5.93kB   12.7MB / 0B   7                                       
-3d118f6c80c3   deploy-development_gcaas-batch_1      0.14%     18MiB / 3.842GiB      0.46%     12.5kB / 14.6kB   14.6MB / 0B   7                                        
-5350f9bee4e6   deploy-development_gcaas-worker_1     0.07%     16.43MiB / 3.842GiB   0.42%     9.28kB / 11.3kB   13.3MB / 0B   6                                         
-22971f9a1fd4   deploy-development_gcaas-mgmt_1       0.00%     15.16MiB / 3.842GiB   0.39%     2.66kB / 370B     12MB / 0B     7                                       
-037e6a3ac6eb   deploy-development_gcaas-geocoder_1   0.00%     15.6MiB / 3.842GiB    0.40%     5.54kB / 3.42kB   12.4MB / 0B   6                                           
-2839c5f4e537   deploy-development_edge-cache_1       0.16%     2.328MiB / 3.842GiB   0.06%     3.13kB / 297B     0B / 0B       5                                       
-3ce695bbf297   deploy-development_pubsub_1           0.17%     2.379MiB / 3.842GiB   0.06%     25.3kB / 13.8kB   0B / 0B       5                                    
-ea7addd728e5   deploy-development_search_1           3.22%     23.45MiB / 3.842GiB   0.60%     3.82kB / 731B     9.7MB / 0B    27                                   
-4699cbf81461   deploy-development_batch-cache_1      0.16%     3.117MiB / 3.842GiB   0.08%     3.33kB / 434B     3.17MB / 0B   5
-```
-
-```bash
 # Result of `docker ps`
 CONTAINER ID   IMAGE                               COMMAND                  CREATED          STATUS          PORTS                      NAMES                       
 0bb1faf8ddc4   deploy-development_gcaas-edge       "/cmd/edge/edge ' --…"   8 seconds ago    Up 7 seconds    0.0.0.0:2151->2151/tcp     deploy-development_gcaas-edge_1
@@ -330,7 +315,7 @@ bf4ed04049c3   deploy-development_gcaas-geocoder   "/cmd/geocoder/geoco…"   9 
 
 Once the build has finished, you should be able to run `docker stats` and see each of the following containers' resource usage. You can also run `docker ps` to see the ports that are exposed from the application to our `localhost`. If you'd like to tail the logs while you send requests to the service, you can also run `docker compose logs --follow` (highly recommended).
 
-To confirm that all is up and running, we can send a request to `http://localhost:2151/geocode`. Because we haven't seeded our dataset with any data, we expect the request to simply echo back our query.
+To confirm that all is up and running, we can send a request to `http://localhost:2151/geocode/`. Because we haven't seeded our dataset with any data, we expect the request to simply echo back our query.
 
 ```bash
 # Request - Test Request to Confirm Edge Service is Running - Should Return No Data, but show HTTP Status 200
@@ -428,11 +413,11 @@ Now that the API is running and data is loaded in, calling the async API should 
 
 # response - api responds with acknowledgement of new batch
 {
-    "id":"dd709eea-59fa-4fac-b7e8-886d5c44c97f",
-    "status":1,
-    "update_time":{
-        "seconds":1661654679,
-        "nanos":792647238
+    "id": "dd709eea-59fa-4fac-b7e8-886d5c44c97f",
+    "status": "ACCEPTED",
+    "update_time": {
+        "seconds": 1661654679,
+        "nanos": 792647238
     }
 }
 ```
