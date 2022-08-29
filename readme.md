@@ -237,7 +237,7 @@ I replicated this test using both cached requests (avg. \~70ms) and the health e
 To simulate a higher load situation, I created a list of sample addresses to request for forward geocoding. I sent these over the wire with eight parallel processes. In this test I found that the API was able to handle this volume OK, but there's still some work to be done to improve performance here, I have not examined the traces to determine where this latency is, though Redis insights could help with that.
 
 ```bash
-time (cat nyc_address_sample.txt |\
+time (cat ./misc/benchmarks/generate-mock-load.txt |\
     xargs -P 8 -I % curl -o /dev/null -s https://gc.dmw2151.com/geocode/ -d '{"method": "FWD_FUZZY", "max_results": 3, "query_addr": "%I"}')
 
 # (21.875 seconds * 8 clients ) / 1000 requests -> ~175ms / request -> SHARP drop :(
